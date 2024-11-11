@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "yoke"
+version = "0.1.0"
+description = "Connecting metagenomic species and their functions."
+authors = ["Anthony Duncan <anthony.duncan@earlham.ac.uk>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.2.2"
+networkx = "^3.3"
+multimethod = "^1.12"
+tqdm = "^4.66.5"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+

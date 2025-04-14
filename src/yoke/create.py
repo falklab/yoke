@@ -242,7 +242,8 @@ class Contig:
             genes (List[int]): Ordered list of genes on contig
             name (Optional[str], optional): Name of contig. Defaults to None.
         """
-        self.genes: List[int] = [int(i) for i in genes]
+
+        self.genes: List[int] = [int(i) for i in genes if i != "?"]
         self.name: str = "" if name is None else name
 
     @staticmethod

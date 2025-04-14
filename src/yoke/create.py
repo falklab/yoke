@@ -59,7 +59,7 @@ class MGS:
         group: pd.DataFrame
     ) -> MGS:
         """Produce single MGS object from a DataFrame, typically MAGvsGC from
-        MATAFILER.
+        MG-TK.
 
         Pass a section of the MAGvsGC DataFrame containing all MAG from one
         MGS. An MGS class object will be created from these MGS.
@@ -301,7 +301,7 @@ def read_mag_vs_gc(
 ) -> Dict[str, MGS]:
     """Create MGS from file connecting MAGs to gene catalogue.
 
-    The MAGvsGC file in MATAFILER provides a ordered lists of genes found
+    The MAGvsGC file in MG-TK provides an ordered lists of genes found
     on each contig in MAGs, along with metdata on each MAG and MGS. This
     will be parsed to make a set of objects represent all these elements, which
     can be used to create a pangenome graph and other analyses.
@@ -318,7 +318,8 @@ def read_mag_vs_gc(
 
     df: pd.DataFrame = pd.read_csv(
         file,
-        sep="\t"
+        sep="\t",
+        low_memory=True
     )
 
     # Filter MAGs

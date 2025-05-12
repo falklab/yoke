@@ -22,7 +22,6 @@ import itertools
 import pathlib
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-import networkx as nx
 import pandas as pd
 
 DEF_MAGCVSGC_COLS = dict(
@@ -101,45 +100,20 @@ class MGS:
 
         """
 
-        edge_dict: Dict[Tuple[int, int], Dict[str, int]] = dict()
+        count_dict: Dict[Tuple[int, int], Dict[str, int]] = dict()
         # Got to be a smarter way of doing this, but this works
         # At least rewrite with defaultdict or something
         for mag in self.mags:
             for edge in mag.edges:
-                if edge not in edge_dict:
-                    edge_dict[edge] = dict()
-                if mag.name not in edge_dict[edge]:
-                    edge_dict[edge][mag.name] = 0
-                edge_dict[edge][mag.name] += 1
+                if edge not in count_dict:
+                    count_dict[edge] = dict()
+                if mag.name not in count_dict[edge]:
+                    count_dict[edge][mag.name] = 0
+                count_dict[edge][mag.name] += 1
         # Convert to a list
         return list(
-            (e[0], e[1], c) for e, c in edge_dict.items()
+            (e[0], e[1], c) for e, c in count_dict.items()
         )
-
-
-    def to_graph(
-        self
-    ) -> nx.Graph:
-        """Create a pangenome graph for this MGS.
-
-        Returns:
-            nx.Graph: Undirected pangenome graph. Each edge has the following
-                properties: 
-                * weight: the number of times that edge occurs in all MAGs
-                * mag_count: dictionary with number of times the edge found
-                    per MAG
-                * mag_set: the MAGs in which this edge was found
-        """
-        graph: nx.Graph = nx.Graph()
-        # Add all vertices
-        graph.add_nodes_from(self.genes)
-        # Add all edges
-        for a, b, count in self.edges:
-            graph.add_edge(a, b,
-                           weight=sum(count.values()),
-                           mag_count=count,
-                           mag_set=count.keys())
-        return graph
 
 
 class MAG:
@@ -335,73 +309,4 @@ def read_mag_vs_gc(
         apply(MGS.from_dataframe_group)
     )
 
-    return mgs
-
-
-def find_hg_paths(pg: nx.Graph):
-    """Find paths in the graph where each edge has the same MAG set.
-    
-    Args:
-        pg (nx.Graph): A pangenome graph constructed by MGS.to_graph()
-    """
-
-    # All homogenomic stretches will neccesarily be included in a spanning
-    # tree of the graph. Currently, I don't think the nature of the spanning
-    # tree matters too much (i.e it need not be the minimum).
-
-    st: nx.Graph = nx.minimum_spanning_tree(pg)
-    # Traverse tree building homogenomic paths as we go
-    hg_paths: List[List[int]] = []
-    curr_path: List[int] = []
-    for v in nx.dfs_preorder_nodes(st):
-        degree: int = st.degree(v)
-        if degree == 0:
-            curr_path = []
-            continue
-        mag_sets: List[Set] = [
-            set(x['mag_set']) for x in st.adj[v].values()
-        ]
-        if degree < 3 and set.union(*mag_sets) == mag_sets[0]:
-            curr_path.append(v)
-        elif len(curr_path) > 1:
-            hg_paths.append(curr_path)
-            curr_path = []
-        else:
-            curr_path = []
-    return hg_paths
-
-
-
-if __name__ == "__main__":
-    mgs: List[MGS] = read_mag_vs_gc(file="MAGvsGC.txt")
-    i = 0
-    mag_i = 0
-
-    find_hg_paths(mgs[0].to_graph())
-    # for m in (x for x in mgs if len(x.mags) > 1):
-    #     fnd = False
-    #     g = m.to_graph()
-    #     # Can we do something simple? Identify some very simple duplications
-    #     v_self = nx.nodes_with_selfloops(g)
-    #     # If the weight of the self loop is lower than the other edges, then
-    #     # this is a duplication.
-    #     for v in v_self:
-    #         adj = g.adj[v]
-    #         # If 3 adjacent vertices, this is the simplest case we could hope for
-    #         if len(adj) == 3:
-    #             dup_set: Set = set(adj[v]['mag_set'])
-    #             neighbours = list(adj.keys())
-    #             neighbours.remove(v)
-    #             l_set = set(adj[neighbours[0]]['mag_set'])
-    #             r_set = set(adj[neighbours[1]]['mag_set'])
-    #             # Being very strict with criteria
-    #             # neighbouring bits must be all the same taxa, loop must be a subset
-    #             if ((l_set == r_set) and (dup_set.issubset(l_set)) and 
-    #                 (len(dup_set) < len(l_set))):
-    #                 i += 1
-    #                 print(f'{v} is duplicated in {dup_set}, found in {l_set}')
-    #                 if not fnd:
-    #                     mag_i += 1
-    #                     fnd = True
-    # print(f'Simple duplications: {i}')
-    # print(f'MGS with simple duplications: {mag_i}')
+    return dict(zip((x.name for x in mgs), mgs))

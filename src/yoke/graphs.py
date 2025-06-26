@@ -3,12 +3,14 @@
 Provides functions to create and analyse pangenome graphs for MGS objects.
 """
 from __future__ import annotations
-from typing import List, Set, Any, NamedTuple, Tuple
+from typing import List, Set, Any, NamedTuple, Tuple, Dict
 
-import networkx
+from multimethod import multimethod
 import networkx as nx
+import pandas as pd
+import plotnine as pn
 
-from yoke import MGS, MAG
+from yoke import MGS, MAG, Contig
 
 
 class MGSGraph:
@@ -47,9 +49,10 @@ class MGSGraph:
         # Add all vertices
         graph.add_nodes_from(self.mgs.genes)
         # Add all edges
-        for a, b, count in self.mgs.edges:
+        for a, b, count, contig in self.mgs.edges:
             graph.add_edge(a, b,
                            weight=sum(count.values()),
+                           contigs=contig,
                            mag_count=count,
                            mag_set=count.keys())
         return graph
@@ -115,19 +118,37 @@ class MGSGraph:
                 # neighbouring bits must be all the same taxa, loop must be a subset
                 if ((l_set == r_set) and (dup_set.issubset(l_set)) and
                     (len(dup_set) < len(l_set))):
+                    support_contigs: Dict[str, Set[Contig]] = (
+                        merge_contig_dicts(
+                            [adj[v]['contigs'] for v in adj]
+                        )
+                    )
                     res.append(TandemIndel(
                         gene=v,
                         vertex=v,
                         duplicated_in=dup_set,
-                        single_in=l_set
+                        single_in=l_set - dup_set,
+                        contigs=support_contigs
                     ))
         return res
 
 class TandemIndel(NamedTuple):
     gene: int
+    """Gene which has a tandem duplication."""
     vertex: int
+    """Vertex ID which has duplication."""
     duplicated_in: Set[str]
+    """Genomes the duplication appears in."""
     single_in: Set[str]
+    """Genomes which do not have the duplication."""
+    contigs: Dict[str, Set[Contig]]
+    """Contigs in each genome which support this variant. Key is MAG name,
+    and value a set of Contigs."""
+
+    @property
+    def id(self) -> str:
+        """ID for this variant. Unique only within the MGS."""
+        return f"tr_{self.vertex}"
 
     @property
     def size(self) -> Tuple[int, int]:
@@ -142,7 +163,137 @@ class TandemIndel(NamedTuple):
         d, s = self.size
         return d / s
 
-    def get_contigs(self, graph: MGSGraph) -> Any:
-        """Find the contigs which support this variant."""
+    def plot(
+            self,
+            window: int = 5
+    ) -> pn.ggplot:
+        """Plot showing the region of contigs containing the variant.
 
-        
+        Args:
+            window: Number of genes up and downstream of the variant region
+            to display
+        """
+        # Find variant regions in all contigs, and trim to window length
+        duplicated_df = pd.concat(
+            [
+                Contig.get_contexts(
+                    contigs=list(self.contigs[d]),
+                    genes=[self.gene, self.gene],
+                    flanking=window
+                ).assign(
+                    mag=d,
+                    duplicated=True
+                ) for d in self.duplicated_in
+            ]
+        )
+        single_df = pd.concat(
+            [
+                Contig.get_contexts(
+                    contigs=list(self.contigs[s]),
+                    genes=[self.gene],
+                    flanking=window
+                ).assign(
+                    mag=s,
+                    duplicated=False
+                ) for s in self.single_in
+            ]
+        )
+        # Dummy empty column in single
+        single_df = single_df.rename(columns=dict(zip(
+            range(window + 1, (2 * window) + 2),
+            range(window + 2, (2 * window) + 3)
+        )))
+        single_df.insert(
+            window + 1,
+            window + 1,
+            pd.Series([None] * single_df.shape[0])
+        )
+        df = pd.concat([duplicated_df, single_df])
+
+        # Convert to a format plottable by plotnine
+        dfs = (
+            df
+            .set_index(["mag", "contig", "duplicated"])
+            .stack()
+            .to_frame("gene_id")
+            .reset_index()
+            .rename(columns=dict(level_3="position"))
+        )
+
+        contig_count: int = sum(len(x) for x in self.contigs.values())
+        plt: pn.ggplot = (
+            pn.ggplot(
+                dfs,
+                pn.aes(
+                    x="position",
+                    y="contig",
+                    color="gene_id"
+                )
+            )
+            + pn.geom_point()
+            + pn.geom_text(
+                mapping=pn.aes(label="gene_id"),
+                nudge_y=0.5,
+                size=5
+            )
+            + pn.guides(
+                color="none"
+            )
+            + pn.theme(
+                figure_size=(window + 2, contig_count / 2.5),
+            )
+        )
+        return plt
+
+    def as_series(self) -> pd.Series:
+        """Information on variant as a Pandas series.
+
+        Provides the ID, gene, size and ratio, along with a boolean for
+        all MAGs in which the variant is or is not observed in. MAGs without
+        the gene will not be included.
+        """
+
+        all_mags: list[str] = list(self.single_in.union(self.duplicated_in))
+        res: pd.Series = pd.Series(
+            index=all_mags,
+            data=[x in self.duplicated_in for x in all_mags]
+        )
+        for p in ['id', 'gene', 'size', 'ratio']:
+            res[p] = getattr(self, p)
+        return res
+
+    @multimethod
+    def as_table(mgs: str, variants: List[TandemIndel]) -> pd.DataFrame:
+        """Information on variants from a single MGS as a DataFrame."""
+        df: pd.DataFrame = (
+            pd.DataFrame([x.as_series() for x in variants])
+            .assign(mgs=mgs)
+        )
+        front: List[str] = ["id", "gene", "size", "ratio"]
+        df = df[
+            front +
+            sorted([x for x in df.columns if x not in front])
+        ]
+        return df
+
+    @as_table.register
+    def _(variants: Dict[str, List[TandemIndel]]) -> pd.DataFrame:
+        """Information on variant from multiple MGS as a DataFrame."""
+        return pd.concat(
+            [TandemIndel.as_table(m, v) for m, v in variants.items()]
+        )
+
+    as_table = staticmethod(as_table)
+
+
+def merge_contig_dicts(
+        list_dicts: List[Dict[str, Set[Contig]]]
+) -> Dict[str, Set[Contig]]:
+    all_keys: Set[str] = set.union(*(set(x.keys()) for x in list_dicts))
+    res: Dict[str, Set[Contig]] = dict()
+    for k in all_keys:
+        contigs: Set[Contig] = set.union(
+            *(set() if k not in x else x[k] for x in list_dicts)
+        )
+        res[k] = contigs
+    return res

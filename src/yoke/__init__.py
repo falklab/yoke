@@ -1,1 +1,111 @@
+import argparse
+import logging
+import os
+import pathlib
+from ast import parse
+
+from yoke import annotations
 from yoke.create import MGS, MAG, Contig, read_mag_vs_gc
+
+# Configure logging
+logger: logging.Logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+ch: logging.Handler = logging.StreamHandler()
+fm: logging.Formatter = logging.Formatter(
+    fmt='%(levelname)s [%(name)s] [%(asctime)s]: %(message)s',
+    datefmt='%d/%m/%Y %I:%M:%S'
+)
+ch.setFormatter(fm)
+logger.addHandler(ch)
+
+def cli():
+    """CLI entrypoint for yoke"""
+
+    # For CLI, default to info level logging to give some indication of
+    # progress
+    logger.setLevel(logging.INFO)
+
+    parser = argparse.ArgumentParser(
+        prog="yoke",
+        description="Simple pangenome and functional tools for metagenomes",
+        epilog="yoke is intended primarily for use with MG-TK output"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print debug messages to stdout"
+    )
+
+    subparsers = parser.add_subparsers()
+    parser_function_counts = subparsers.add_parser(
+        "function_counts",
+        help="Count functional annotations in MAGS"
+    )
+    parser_function_counts.add_argument(
+        "-m",
+        "--magvsgc",
+        help="MAGvsGC file, which defines for each MAG it's MGS, and the "
+             "genes on each of it's contigs",
+        type=pathlib.Path,
+        required=True,
+    )
+    parser_function_counts.add_argument(
+        "-a",
+        "--annotations",
+        help="Gene annotation file, containing pairs of genes and functions.",
+        type=pathlib.Path,
+        required=True
+    )
+    parser_function_counts.add_argument(
+        "-d",
+        "--descriptions",
+        help="Description file, giving description of each function.",
+        type=pathlib.Path,
+        required=True
+    )
+    parser_function_counts.add_argument(
+        "-o",
+        "--output",
+        help="Directory to write output to. Existing file will be overwritten.",
+        type=pathlib.Path,
+        default=pathlib.Path(os.getcwd()) / "function_counts"
+    )
+    parser_function_counts.add_argument(
+        "-n",
+        "--name",
+        help="Name of annotation scheme (e.g KEGG, eggNOG, etc.) Only used to"
+        "organise output.",
+        type=str,
+        required=True
+    )
+    parser_function_counts.add_argument(
+        "--completeness",
+        help="Minimum completeness of MAG to consider.",
+        type=float,
+        default=0
+    )
+    parser_function_counts.add_argument(
+        "--contamination",
+        help="Maximum contamination of MAG to consider.",
+        type=float,
+        default=100
+    )
+    parser_function_counts.add_argument(
+        "--compress",
+        help="Compress each output table using gzip compression.",
+        action="store_true"
+    )
+    parser_function_counts.set_defaults(
+        func=lambda x: annotations.cli_function_count(
+            magvsgc=x.magvsgc,
+            annotations=x.annotations,
+            descriptions=x.descriptions,
+            output=x.output,
+            name=x.name,
+            completeness=x.completeness,
+            contamination=x.contamination,
+            compress=x.compress
+        )
+    )
+    args = parser.parse_args()
+    args.func(args)

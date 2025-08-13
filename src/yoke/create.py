@@ -18,8 +18,12 @@ use the package for other pipelines.
 
 from __future__ import annotations
 
+import csv
+import gzip
 import itertools
 import pathlib
+import tarfile
+from collections import Counter
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
@@ -85,6 +89,16 @@ class MGS:
         """Set of all genes in this MGS."""
 
         return set().union(*(x.genes for x in self.mags))
+
+    @property
+    def gene_matrix(self) -> pd.DataFrame:
+        """Matrix of gene count for each MAG in the MGS.
+
+        The matrix will have genes on rows, with MAGs on columns. Each entry
+        will be the number of times the gene occurs.
+        """
+
+        return pd.concat([mag.gene_series for mag in self.mags])
 
     @property
     def edges(self) -> List[
@@ -191,6 +205,11 @@ class MAG:
         return set(itertools.chain.from_iterable(
             x.genes for x in self.contigs
         ))
+    @property
+    def gene_series(self) -> pd.Series:
+        """Series with count of observed genes."""
+        gene_count: Counter = Counter(self.genes)
+        return pd.Series(gene_count, name=self.name)
 
     @property
     def edges(self) -> List[Tuple[int, int, Contig]]:
@@ -447,3 +466,87 @@ def read_mag_vs_gc(
     )
 
     return dict(zip((x.name for x in mgs), mgs))
+
+def generate_mgs_from_magvsgc(
+    file: Union[str, pathlib.Path],
+    compressed: bool = True,
+    min_completeness: float = 0,
+    max_contamination: float = 100,
+    cols: Dict[str, str] = None,
+    **kwargs
+) -> MGS:
+    """Yield MGS objects based on MAGvsGC content.
+
+    Compared to read_mag_vs_gc, this avoids reading the whole table into memory,
+    yields individual MGS objects rather than collecting them.
+    """
+
+    if cols is None:
+        cols = DEF_MAGCVSGC_COLS
+
+    openfn = (lambda x: gzip.open(x, 'rt')) if compressed else open
+    with openfn(file) as magvsgc:
+        reader = csv.DictReader(magvsgc, delimiter="\t", **kwargs)
+        mags: List[Dict] = []
+        prev_mgs: Optional[str] = None
+        for row in reader:
+            mgs: str = row[cols['mgs']]
+            if (prev_mgs != mgs) and (len(mags) > 0):
+                # Create and yield an MGS
+                df: pd.DataFrame = (
+                    pd.DataFrame(mags)
+                    .astype(
+                        {
+                            cols['representative']: "str",
+                            cols['completeness']: "float",
+                            cols['contamination']: "float"
+                        }
+                    )
+                )
+                # Filter MAGs
+                df = (
+                    df[
+                        (df[cols['completeness']] > min_completeness) &
+                        (df[cols['contamination']] < max_contamination)
+                    ]
+                    .astype({cols['representative']: "str"})
+                )
+                yield MGS.from_dataframe_group(df)
+                mags = []
+
+            # If this MAG is not part of an MGS skip it
+            if len(mgs.strip()) < 1:
+                continue
+
+            # Select only requested columns
+            mags.append(
+                {
+                    v: row[v] for k, v in DEF_MAGCVSGC_COLS.items()
+                }
+            )
+
+            prev_mgs = mgs
+
+        # Yield final MGS
+        if len(mags) > 0:
+            # TODO: Tidy and remove this duplication
+            df: pd.DataFrame = (
+                pd.DataFrame(mags)
+                .astype(
+                    {
+                        cols['representative']: "str",
+                        cols['completeness']: "float",
+                        cols['contamination']: "float"
+                    }
+                )
+            )
+            # Filter MAGs
+            df = (
+                df[
+                    (df[cols['completeness']] > min_completeness) &
+                    (df[cols['contamination']] < max_contamination)
+                    ]
+                .astype({cols['representative']: "str"})
+            )
+            if df.shape[0] > 0:
+                yield MGS.from_dataframe_group(df)

@@ -85,4 +85,3 @@ def test_hs_mgs_count(
     )
 
     tbl: pd.DataFrame = s.function_counts(list(mgs.values()))
-    ff = 66

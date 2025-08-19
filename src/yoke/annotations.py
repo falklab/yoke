@@ -5,7 +5,10 @@ Orthologs, eggNOGs, GBM modules etc. This module provides methods to handle
 the connection between gene identities and these annotation schema.
 """
 from __future__ import annotations
+
+import csv
 import dataclasses
+import gzip
 import itertools
 import logging
 import pathlib
@@ -251,6 +254,22 @@ class HierarchicalSchema:
             gene_map=a_df
         )
 
+def _combine_mgs(
+        mag_counts: pathlib.Path,
+        mgs: List[str]
+) -> pd.DataFrame:
+    """Combine function counts of multiple MGS into one table. The returned
+    table will have one column for each MAG in any of the listed MGS. This
+    can be used to get a table of all MGS with a certain phenotype, or from
+    a given genus etc.
+    """
+    mgs_dfs: List[pd.DataFrame] = [
+        pd.read_csv(mag_counts / f"{x}.tsv", sep="\t", index_col=0) for x in mgs
+    ]
+    comb_df: pd.DataFrame = pd.concat(mgs_dfs, axis=1)
+    return comb_df
+
+
 def cli_function_count(
         magvsgc: pathlib.Path,
         annotations: pathlib.Path,
@@ -265,6 +284,7 @@ def cli_function_count(
 
     logger.setLevel(logging.INFO)
 
+    logger.info("function_count")
     logger.info("|- Parameters -|")
     logger.info("MAGvsGC file: %s", magvsgc)
     logger.info("Gene annotations: %s", annotations)
@@ -328,3 +348,67 @@ def cli_function_count(
     df_means: pd.DataFrame = pd.concat(means, axis=1)
     logger.info("MGS means saved to %s", pth_all)
     df_means.to_csv(pth_all, sep="\t")
+
+def cli_function_hoist(
+        mag_counts: pathlib.Path,
+        magvsgc_file: pathlib.Path,
+        output: pathlib.Path,
+        ranks: List[str] = ['Domain', 'Phylum', 'Class', 'Order', 'Family',
+                            'Genus', 'Species'],
+        compressed: bool = True,
+        cols: dict[str, str] = None
+) -> None:
+    """Summarise previously produced function counts per MAG at different
+    taxonomic levels."""
+
+    logger.setLevel(logging.INFO)
+
+    logger.info("function_summarise")
+    logger.info("|- Parameters -|")
+    logger.info("MAG function counts: %s", mag_counts)
+    logger.info("MAGvsGC file: %s", magvsgc_file)
+    logger.info("Ranks: %s", ",".join(ranks))
+    logger.info("Output: %s", output)
+    logger.info("Compress: %s", compressed)
+
+    # Take per MGS taxonomy from MAGvsGC file
+    if cols is None:
+        cols = create.DEF_MAGCVSGC_COLS
+
+    logger.info("Reading MAGvsGC file %s", magvsgc_file)
+    openfn = (lambda x: gzip.open(x, 'rt')) if compressed else open
+    with openfn(magvsgc_file) as magvsgc:
+        reader = csv.DictReader(magvsgc, delimiter="\t")
+        mgs_tax: Dict[str, pd.Series] = dict()
+        for row in reader:
+            mgs_id: str = row[cols['mgs']]
+            if (mgs_id not in mgs_tax) and (len(mgs_id) > 0):
+                tdict = {r: row[r] for r in ranks}
+                tdict['mgs'] = mgs_id
+                mgs_tax[mgs_id] = tdict
+    tax_df: pd.DataFrame = pd.DataFrame(
+        [pd.Series(x) for x in mgs_tax.values()]
+    )
+
+    # Group MGS by each level of each requested rank
+    for rank in ranks:
+        logger.info("Summarise to rank %s", rank)
+        pth_rank = output / rank
+        pth_rank.mkdir(parents=True, exist_ok=True)
+        means: List[pd.Series] = []
+        for val in tax_df[rank].unique():
+            logger.info("Summarising taxon %s", val)
+            pth_full = pth_rank / f"{val}.tsv"
+            df = _combine_mgs(
+                mag_counts,
+                tax_df.loc[tax_df[rank] == val, 'mgs'].tolist()
+            )
+            logger.debug("Write to %s", pth_full)
+            df.to_csv(pth_full, sep="\t")
+            logger.debug("Calculate mean for taxon")
+            mean_series = df.mean(axis=1)
+            mean_series.name = val
+            means.append(mean_series)
+        logger.info("Writing taxon mean counts")
+        df_mean = pd.DataFrame(means)
+        df_mean.T.to_csv(output / f"{rank}.tsv", sep="\t")

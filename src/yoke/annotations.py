@@ -12,6 +12,7 @@ import gzip
 import itertools
 import logging
 import pathlib
+import sys
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
@@ -269,6 +270,14 @@ def _combine_mgs(
     comb_df: pd.DataFrame = pd.concat(mgs_dfs, axis=1)
     return comb_df
 
+def _csv_field_adjust():
+    """Increase max field size for csv to help parse larger entries in
+    MAGvsGC"""
+    logger.debug("Increasing max field size to %s", str(sys.maxsize))
+    logger.debug("This has been needed in the past to parse large entries in "
+                 "MAGvsGC")
+    csv.field_size_limit(sys.maxsize)
+
 
 def cli_function_count(
         magvsgc: pathlib.Path,
@@ -282,6 +291,7 @@ def cli_function_count(
 ) -> None:
     """Count how many genes have each functional annotation in all MAGS."""
 
+    _csv_field_adjust()
     logger.setLevel(logging.INFO)
 
     logger.info("function_count")
@@ -361,6 +371,7 @@ def cli_function_hoist(
     """Summarise previously produced function counts per MAG at different
     taxonomic levels."""
 
+    _csv_field_adjust()
     logger.setLevel(logging.INFO)
 
     logger.info("function_summarise")
@@ -391,13 +402,14 @@ def cli_function_hoist(
     )
 
     # Group MGS by each level of each requested rank
-    for rank in ranks:
+    for i, rank in enumerate(ranks):
         logger.info("Summarise to rank %s", rank)
         pth_rank = output / rank
         pth_rank.mkdir(parents=True, exist_ok=True)
         means: List[pd.Series] = []
-        for val in tax_df[rank].unique():
-            logger.info("Summarising taxon %s", val)
+        tax: List[str] = list(tax_df[rank].unique())
+        for val in (pbar := tqdm.tqdm(tax)):
+            pbar.set_description(f"{rank}: {val}")
             pth_full = pth_rank / f"{val}.tsv"
             df = _combine_mgs(
                 mag_counts,

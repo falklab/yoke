@@ -162,4 +162,9 @@ def cli():
         )
     )
     args = parser.parse_args()
-    args.func(args)
+
+    # Try subparser or print top level help
+    if "func" in args:
+        args.func(args)
+    else:
+        parser.print_help()

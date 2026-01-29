@@ -11,6 +11,7 @@ import dataclasses
 import gzip
 import itertools
 import logging
+import os
 import pathlib
 import sys
 from collections import Counter
@@ -79,13 +80,15 @@ class HierarchicalSchema:
             hierarchy_table: Table where the index is function IDs, and each
             column represents a level of the hierarchy.
             gene_map: Table with the index being gene ID, and the only column
-            being function ID.
+            being function ID. Values should not be NA.
             **kwargs: Can add progress_bar=False to disable progress bar
         """
         self.__name: str = name
         self.__hierarchy: pd.DataFrame = hierarchy
+        # Drop NA
+        gm = gene_map.loc[~gene_map.iloc[:, 0].isna(), :]
         self.__gene_map: Dict = dict(zip(
-            gene_map.index, gene_map.iloc[:, 0]
+            gm.index, gm.iloc[:, 0]
         ))
         self.__functions: Dict[str, GeneFunction] = (
             self.__make_gene_functions(hierarchy, gene_map)
@@ -156,7 +159,7 @@ class HierarchicalSchema:
         counts: pd.Series = pd.Series(
             f_counts,
             name=mag.name
-        )
+        ).astype("int")
         return counts
 
     @multimethod
@@ -424,3 +427,49 @@ def cli_function_hoist(
         logger.info("Writing taxon mean counts")
         df_mean = pd.DataFrame(means)
         df_mean.T.to_csv(output / f"{rank}.tsv", sep="\t")
+
+# Lazy testing - for some reason multimethod dispatch won't work properly
+# from pytest
+if __name__ == "__main__":
+    # print(os.getcwd())
+    # mgs: Dict[str, MGS] = create.read_mag_vs_gc(
+    #     pathlib.Path("../../tests/data/DIME/MAGvsGC.txt.gz"),
+    #     min_completeness=0,
+    #     max_contamination=100
+    # )
+    #
+    # annotation: pd.DataFrame = pd.read_csv(
+    #     pathlib.Path("../../tests/data/DIME/DIAass_NOG.srt.gzgeneAss.gz"),
+    #     sep="\t",
+    #     header=None,
+    #     index_col=0
+    # )
+    # description: pd.DataFrame = pd.read_csv(
+    #     "../../tests/data/DIME/NOG.descr",
+    #     sep="\t",
+    #     header=None,
+    #     index_col=0
+    # )
+    #
+    # s: HierarchicalSchema = HierarchicalSchema(
+    #     name="KEGG",
+    #     hierarchy=description,
+    #     gene_map=annotation
+    # )
+    # mgs_list: List[MGS] = list(mgs.values())[0:10]
+    # m: MGS = mgs_list[0]
+    #
+    # # f = s.function_counts(mgs_list[0])
+    # tbl: pd.DataFrame = s.function_counts(mgs_list)
+    # foo = "bar"
+    # cli_function_count(
+    #     magvsgc=pathlib.Path("../../tests/data/DIME/MAGvsGC.txt.gz"),
+    #     annotations=pathlib.Path(
+    #         "../../tests/data/DIME/DIAass_CZy.srt.gzgeneAss.gz"
+    #     ),
+    #     descriptions=pathlib.Path("../../tests/data/DIME/Cazy.families.fix"),
+    #     output=pathlib.Path("../../tests/output/"),
+    #     compress=True,
+    #     name="CAZY"
+    # )
+    pass

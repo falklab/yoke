@@ -2,6 +2,11 @@
 A python package with CLI tools for doing assorted bits of pangenomic and functional analysis with MG-TK outputs.
 
 ## Installation
+There are currently some problems building recent `scipy` with the versions given in the current `toml`.
+I will resolve these eventually, but for now, what works is to make an environment with the following
+version
+```micromamba create --name yoke pip python==3.12 cmake gfortran libopenblas scipy==1.15.1```
+then
 ```pip install git+https://github.com/apduncan/yoke.git```
 
 ## Update

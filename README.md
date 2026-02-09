@@ -7,12 +7,12 @@ I will resolve these eventually, but for now, what works is to make an environme
 version
 ```micromamba create --name yoke pip python==3.12 cmake gfortran libopenblas scipy==1.15.1```
 then
-```pip install git+https://github.com/apduncan/yoke.git```
+```pip install git+https://github.com/falklab/yoke.git```
 
 ## Update
 I'm not doing proper versioning currently.
 To force update, use:
-```pip install --upgrade --force-reinstall git+https://github.com/apduncan/yoke.git```
+```pip install --upgrade --force-reinstall git+https://github.com/falklab/yoke.git```
 
 ### Install in a conda/mamba env
 To install in a conda or mamba environment, make sure you have pip installed in the environment rather than using

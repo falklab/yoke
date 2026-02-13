@@ -13,11 +13,12 @@ import itertools
 import logging
 import os
 import pathlib
+import subprocess
 import sys
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Any, Iterable, List, Set, Dict, Union
+from typing import Optional, Any, Iterable, List, Set, Dict, Union, Generator
 
 import numpy as np
 import pandas as pd
@@ -25,6 +26,8 @@ import tqdm
 from multimethod import multimethod
 from pandas.core.computation.expr import intersection
 
+from yoke.data.utils import BundledModules, ModuleInfo
+from yoke.utils import GzipManager
 from yoke import create
 from yoke.create import MAG, MGS
 
@@ -258,6 +261,183 @@ class HierarchicalSchema:
             gene_map=a_df
         )
 
+class RTKModules:
+    """Functional modules for which module presence can be estimated using RTK.
+
+    Groups of genes working together can be defined as functional modules, and
+    we can assess whether the whole module is present and it's coverage etc in
+    a set of genes. This class handles modules defined in Omixer format,
+    and uses external binary `rtk` to estimate their completion.
+
+    As estimation is handled by `rtk`, the modules definitions are never
+    loaded or handled in python, only the paths to the components are needed.
+    The package also bundles several module definitions, which can be
+    loaded from the `RTKModules.bundled()` factory method.
+    """
+    RTK_DEFAULTS = dict(
+        redundancy = "5",
+        writeExtraModEstimates = True,
+        moduleCompl = "0.5",
+        enzymeCompl = "0.5",
+        collapseDblModules = True
+    )
+
+    def __init__(
+            self,
+            definition: Union[str, pathlib.Path],
+            description: Union[str, pathlib.Path],
+            hierarchy: Union[str, pathlib.Path],
+            name: str
+    ) -> None:
+        self.__definition: pathlib.Path = pathlib.Path(definition)
+        self.__description: pathlib.Path = pathlib.Path(description)
+        self.__hierarchy: pathlib.Path = pathlib.Path(hierarchy)
+        self.__name: str = name
+
+    @property
+    def definition(self) -> pathlib.Path:
+        """Path to module definitions (which functions make up a module)"""
+        return self.__definition
+
+    @property
+    def description(self) -> pathlib.Path:
+        """Path to description of modules"""
+        return self.__description
+
+    @property
+    def hierarchy(self) -> pathlib.Path:
+        """Path to hierarchy of modules"""
+        return self.__hierarchy
+
+    @property
+    def name(self) -> str:
+        """Name of the modules, used in output formatting"""
+        return self.__name
+
+    @staticmethod
+    def from_bundled(name: str) -> RTKModules:
+        """Create a module scorer for one of the bundled modules."""
+
+        if name not in BundledModules._member_names_:
+            raise ValueError(
+                f"Invalid module name: {name}. Valid names are: "
+                f"{BundledModules._member_names_}"
+            )
+        mod: ModuleInfo = BundledModules[name].value
+        return RTKModules(
+            definition=mod.definition,
+            description=mod.description,
+            hierarchy=mod.hierarchy,
+            name=mod.name
+        )
+
+    @staticmethod
+    def _format_rtk_args(args: Dict[str, Any]) -> str:
+        """Convert dictionary into shell argument list"""
+        argline: str = ""
+        for key, val in args.items():
+            if isinstance(val, bool) and val:
+                argline += f" -{key}"
+                continue
+            argline += f" -{key} {str(val)}"
+        return argline
+
+    @staticmethod
+    def load_result(prefix: pathlib.Path) -> Dict[str, pd.DataFrame]:
+        """Load results from an RTK module call as tables.
+
+        Load all resulting tables from a call to `rtk module`. The returned
+        dictionary will have a key for each suffix (i.e. result['mat'],
+        result['KOused'])
+
+        Args:
+            prefix: The prefix for the files (i.e. /home/a/MGS.0.GBM)
+
+        Returns:
+            Dictionary will have a key for each suffix (i.e. result['mat'],
+            result['KOused'])
+        """
+
+        logger.debug("Load RTK results for %s", prefix)
+        files: List[pathlib.Path] = list(prefix.parent.glob(f"{prefix.name}.*"))
+        logger.debug("Found %s files: %s", len(files), files)
+        res = {
+            str(l).replace(str(prefix) + ".", ""): pd.read_csv(
+                l, sep="\t")
+            for l in files
+        }
+        return res
+
+    def score_table(
+            self,
+            pth_mgs_tbl: pathlib.Path,
+            output_prefix: Optional[pathlib.Path] = None,
+            load_result: bool = False,
+            **kwargs
+    ) -> Optional[Dict[str, pd.DataFrame]]:
+        """Score the presence of modules for each item in a table.
+
+        The input table should have functions on rows, and items (samples, MAGs)
+        on columns, with entries being either coverage or counts. `rtk module`
+        is used to perform scoring.
+
+        Args:
+            pth_mgs_tbl: Path to table with count of functions to score
+            module presence in.
+            output_prefix: Path to use as prefix for each file. Will produce
+            multiple output files (i.e. prefix /home/a/GBM.MGS.0 will make
+            /home/a/GBM.MGS.0.mat, /home/a/GBM.0.KOused, ...). If none,
+            pth_mgs_tbl will be used.
+            load_result: Load each resulting table and return in a dictionary.
+            **kwargs: Extra arguments to be passed to rtk. Any boolean True
+            values will be parsed to a flag. No validation is done on these
+            arguments.
+
+        Returns:
+            List of paths for output files
+        """
+
+        output_prefix = pth_mgs_tbl if output_prefix is None else output_prefix
+        rtk_params: Dict[str, Any] = self.RTK_DEFAULTS | kwargs
+        rtk_cmd: str = (
+            "rtk module "
+            f"-i {pth_mgs_tbl} "
+            f"-o {output_prefix} "
+            f"-refMods {self.definition} "
+            f"-description {self.description} "
+            f"-hiera {self.hierarchy}"
+        )
+
+        # Convert rtk params to command options
+        logger.debug("Format extra RTK arguments: %s", rtk_params)
+        extra_args: str = self._format_rtk_args(rtk_params)
+        rtk_cmd = rtk_cmd + extra_args
+
+        expect_output: pathlib.Path = output_prefix.with_name(
+            f"{output_prefix.name}.mat")
+
+        logger.debug("Run RTK command: %s", rtk_cmd)
+        subp: subprocess.CompletedProcess = subprocess.run(
+            rtk_cmd,
+            shell=True,
+            capture_output=True
+        )
+
+        # Determine success
+        if subp.returncode != 0 or not expect_output.exists():
+            logger.error(
+                "RTK module scoring for %s failed", pth_mgs_tbl)
+            logger.error("Stderr")
+            logger.error(subp.stderr.decode("utf-8"))
+            logger.error("Stdout")
+            logger.error(subp.stdout.decode("utf-8"))
+            raise Exception(subp)
+
+        if load_result:
+            return self.load_result(output_prefix)
+        return None
+
+
 def _combine_mgs(
         mag_counts: pathlib.Path,
         mgs: List[str]
@@ -349,10 +529,18 @@ def cli_function_count(
                 if compress else
                 pth_out / f"{mgs.name}.tsv"
         )
-        tbl: pd.DataFrame = s.function_counts(mgs)
+        pth_mgs_pa: pathlib.Path = (
+                pth_out / f"presence.{mgs.name}.tsv.gz"
+                if compress else
+                pth_out / f"presence.{mgs.name}.tsv"
+        )
+        tbl: pd.DataFrame = s.function_counts(mgs).fillna(0.0)
         tbl.columns = tbl.columns.droplevel("mgs")
         logger.debug("Write to %s", pth_mgs)
         tbl.to_csv(pth_mgs, sep="\t", **comp_args)
+        tbl_presence: pd.DataFrame = tbl > 0.0
+        logger.debug("Write to %s", pth_mgs_pa)
+        tbl_presence.to_csv(pth_mgs_pa, sep="\t", **comp_args)
         mean: pd.Series = tbl.mean(axis=1)
         mean.index.name = mgs.name
         means.append(mean)
@@ -428,6 +616,76 @@ def cli_function_hoist(
         df_mean = pd.DataFrame(means)
         df_mean.T.to_csv(output / f"{rank}.tsv", sep="\t")
 
+def cli_function_modules(
+        tables: Iterable[pathlib.Path],
+        name: str,
+        output_dir: pathlib.Path,
+        modules: Optional[str] = None,
+        definition: Optional[pathlib.Path] = None,
+        description: Optional[pathlib.Path] = None,
+        hierarchy: Optional[pathlib.Path] = None
+) -> None:
+    """Score module presence based on a table of functional annotations.
+
+    After counting the presence of functional genes in MAGs, this function
+    can estimate the presence of pathways (defined roughly as sequence of
+    genes) in the MAGs. This is done using external binary RTK, and modules
+    defined in Omixer format. Definitions of some modules are bundled with
+    this package.
+
+    Args:
+        tables: Paths for tables of function counts to be processed. Tables
+        should be tab separated, with functions on rows, observations on
+        columns
+        name: Name of the modules to be scored. Only used for formatting output
+        output_dir: Path to directory to write results to
+        modules: Name of bundled modules to use. If this is provided, the
+        paths for definition, description, and hierarchy are ignored, and
+        the bundled modules loaded instead.
+        definition: Path to module definitions, in Omixer format
+        description: Path to module description
+        hierarchy: Pth to module hierarchy
+
+    Returns:
+        Produce several output files from RTK call: x.mat, x.desc, x.MODscore,
+        x.KOused
+    """
+
+    logger.setLevel(logging.INFO)
+
+    logger.info("module_score")
+    logger.info("|- Parameters -|")
+    logger.info("Tables: %s tables", len(tables))
+    logger.info("Name: %s", name)
+    logger.info("Output: %s", output_dir)
+    logger.info("Modules: %s", modules)
+    logger.info("Definition: %s", definition)
+    logger.info("Description: %s", description)
+    logger.info("Hierarchy: %s", hierarchy)
+
+    mods: RTKModules
+    if modules is not None:
+        mods = RTKModules.from_bundled(modules)
+        name = modules
+    else:
+        # Assume argparse types have done the required existence checks
+        mods = RTKModules(
+            definition=definition,
+            description=description,
+            hierarchy=hierarchy,
+            name=name
+        )
+
+    for tbl in tables:
+        with GzipManager(str(tbl)) as tbl_dc:
+            tbl_name: str = ".".join(tbl_dc.name.split(".")[:-1])
+            prefix_out: pathlib.Path = output_dir / f"{tbl_name}.{name}"
+            mods.score_table(
+                pth_mgs_tbl=tbl_dc,
+                output_prefix=prefix_out
+            )
+
+
 # Lazy testing - for some reason multimethod dispatch won't work properly
 # from pytest
 if __name__ == "__main__":
@@ -472,4 +730,14 @@ if __name__ == "__main__":
     #     compress=True,
     #     name="CAZY"
     # )
-    pass
+    logger.setLevel(logging.DEBUG)
+    gbm_mods: RTKModules = RTKModules(
+        definition="../../tests/data/module_defs/GBM/modGBM.list",
+        description="../../tests/data/module_defs/GBM/modGBM.descr",
+        hierarchy="../../tests/data/module_defs/GBM/modGBM_hiera.txt",
+        name="GBM"
+    )
+    gbm_mods.score_table(
+        pth_mgs_tbl=pathlib.Path("../../tests/output/KEGG/MGS.0.tsv"),
+        output_prefix=pathlib.Path("../../tests/output/GBM_testo")
+    )

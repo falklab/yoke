@@ -7,7 +7,7 @@ from _pytest.fixtures import fixture
 
 import create
 from create import MGS
-from annotations import HierarchicalSchema
+from annotations import HierarchicalSchema, RTKModules, cli_function_modules
 
 AnnPaths = namedtuple("AnnPaths", "annotation description")
 
@@ -133,3 +133,42 @@ def test_hs_mgs_count(
     # f = s.function_counts(mgs)
     tbl: pd.DataFrame = s.function_counts(mgs_list)
 
+@fixture
+def pth_kegg_abd() -> pathlib.Path:
+    return pathlib.Path("data/DIME/KGML0.txt")
+
+def test_score_gbm(
+        pth_kegg_abd: pathlib.Path,
+        tmp_path: pathlib.Path
+):
+    gbm = RTKModules.from_bundled("GBM")
+    pref: pathlib.Path = tmp_path / "test_gbm"
+    gbm.score_table(
+        pth_mgs_tbl=pth_kegg_abd,
+        output_prefix=pref
+    )
+
+    for xtn in ["KOused", "mat", "descr", "MODscore"]:
+        assert pref.with_suffix(f".{xtn}").exists()
+
+@fixture
+def pth_mgs_kegg() -> pathlib.Path:
+    return pathlib.Path("output/KEGG")
+
+def test_score_cli(
+        pth_mgs_kegg: pathlib.Path,
+        tmp_path: pathlib.Path
+):
+    """Attempt to score multiple tables using the CLI function."""
+
+    kegg_mgs: List[pathlib.Path] = list(pth_mgs_kegg.glob("MGS.1*.tsv.gz"))
+    cli_function_modules(
+        kegg_mgs, "GBM", tmp_path, "GBM"
+    )
+    for tbl in kegg_mgs:
+        assert (
+                tmp_path /
+                f"{tbl.name.replace(".tsv.gz", "")}.GBM.mat"
+        ).exists()
+        # Ensure uncompressed versions tidied up
+        assert not tbl.with_suffix("").exists()

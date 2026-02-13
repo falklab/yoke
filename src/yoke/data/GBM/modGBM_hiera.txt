@@ -1,0 +1,57 @@
+Mod	Level_1	Definition
+MGB001	Serotonin synthesis	Serotonin synthesis I
+MGB002	Serotonin synthesis	Serotonin synthesis II
+MGB003	Melatonin synthesis	Melatonin synthesis
+MGB004	Kynurenine synthesis	Kynurenine synthesis
+MGB005	Tryptophan synthesis	Tryptophan synthesis
+MGB006	Glutamate synthesis	Glutamate synthesis I
+MGB007	Glutamate synthesis	Glutamate synthesis II
+MGB008	Acetylcholine synthesis	Acetylcholine synthesis
+MGB009	Histamine synthesis	Histamine synthesis
+MGB010	Histamine degradation	Histamine degradation
+MGB011	Cortisol degradation	Cortisol degradation
+MGB012	Dopamine synthesis	Dopamine synthesis
+MGB013	Noradrenaline synthesis	Noradrenaline synthesis
+MGB014	Adrenaline synthesis	Adrenaline synthesis
+MGB015	p-Cresol synthesis	p-Cresol synthesis
+MGB016	p-Cresol degradation	p-Cresol degradation
+MGB017	IPA synthesis	IPA synthesis (Clostridium sporogenes pathway)
+MGB018	Kynurenine degradation	Kynurenine degradation
+MGB019	GABA degradation	GABA degradation
+MGB020	GABA synthesis	GABA synthesis I
+MGB021	GABA synthesis	GABA synthesis II
+MGB022	GABA synthesis	GABA synthesis III
+MGB023	Dopamine degradation	Dopamine degradation
+MGB024	DOPAC synthesis	DOPAC synthesis
+MGB025	Nitric oxide synthesis	Nitric oxide synthesis I (NO synthase)
+MGB026	Nitric oxide synthesis	Nitric oxide synthesis II (nitrite reductase)
+MGB027	Nitric oxide degradation	Nitric oxide degradation I (NO dioxygenase)
+MGB028	Nitric oxide degradation	Nitric oxide degradation II (NO reductase)
+MGB029	ClpB	ClpB (ATP-dependent chaperone protein)
+MGB030	Polysaccharide A	Polysaccharide A
+MGB031	Estradiol degradation	17-beta-Estradiol degradation
+MGB032	Quinolinic acid synthesis	Quinolinic acid synthesis
+MGB033	Quinolinic acid degradation	Quinolinic acid degradation
+MGB034	Isovaleric acid synthesis	Isovaleric acid synthesis I (KADH pathway)
+MGB035	Isovaleric acid synthesis	Isovaleric acid synthesis II (KADC pathway)
+MGB036	Adenosylmethionine synthesis	S-Adenosylmethionine (SAM) synthesis
+MGB037	Inositol synthesis	Inositol synthesis
+MGB038	Inositol degradation	Inositol degradation
+MGB039	GHB degradation	g-Hydroxybutyric acid (GHB) degradation
+MGB040	Vitamin K2 synthesis	Menaquinone synthesis (vitamin K2) I
+MGB041	Vitamin K2 synthesis	Menaquinone synthesis (vitamin K2) II (alternative pathway: futalosine pathway)
+MGB042	PUFAs synthesis	PUFAs synthesis (AA, EPA, DHA)
+MGB043	Acetate synthesis	Acetate synthesis I
+MGB044	Acetate synthesis	Acetate synthesis II
+MGB045	Acetate synthesis	Acetate synthesis III
+MGB046	Acetate synthesis	Acetate synthesis IV
+MGB047	Acetate degradation	Acetate degradation
+MGB048	Propionate synthesis	Propionate synthesis I
+MGB049	Tryptophan degradation	Tryptophan degradation
+MGB050	Glutamate degradation	Glutamate degradation I
+MGB051	Glutamate degradation	Glutamate degradation II
+MGB052	Butyrate synthesis	Butyrate synthesis I
+MGB053	Butyrate synthesis	Butyrate synthesis II
+MGB054	Propionate synthesis	Propionate synthesis II
+MGB055	Propionate synthesis	Propionate synthesis III
+MGB056	Propionate degradation	Propionate degradation I

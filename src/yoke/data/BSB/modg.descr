@@ -1,0 +1,133 @@
+MF0001	ethanol production (formate pathway)
+MF0002	ethanol production (CO2 pathway) 
+MF0003	acetylglucosamine degradation
+MF0004	putrescine degradation
+MF0005	acetylneuraminate and acetylmannosamine degradation
+MF0006	urea degradation
+MF0007	phenylalanine degradation
+MF0008	tyrosine degradation (hydroxyphenylacetaldehyde pathway)
+MF0009	tryptophan degradation
+MF0010	tyrosine degradation (phenol pathway)
+MF0011	aspartate degradation (oxaloacetate pathway)
+MF0012	aspartate degradation (fumarate pathway)
+MF0013	glutamate degradation (crotonyl-CoA pathway)
+MF0014	glutamate degradation (4-aminobutanoate pathway)
+MF0015	glutamate degradation (methylaspartate pathway)
+MF0016	glycine degradation
+MF0017	alanine degradation (racemase pathway)
+MF0018	proline degradation (glutamate pathway)
+MF0019	proline degradation (aminopentanoate pathway)
+MF0020	valine degradation
+MF0021	leucine degradation
+MF0022	isoleucine degradation
+MF0023	methionine degradation (cysteine pathway)
+MF0024	methionine degradation (mercaptan pathway)
+MF0025	alanine degradation (glutamate pathway)
+MF0026	cysteine biosynthesis/homocysteine degradation
+MF0027	cysteine degradation
+MF0028	serine degradation
+MF0029	threonine degradation (glycine pathway)
+MF0030	threonine degradation (formate pathway)
+MF0031	asparagine degradation
+MF0032	glutamine degradation (ammonia pathway)
+MF0033	cysteine degradation (mercaptopyruvate pathway)
+MF0034	glutamine degradation (oxoglutarate pathway)
+MF0035	arginine degradation (agmatine deiminase pathway)
+MF0036	arginine degradation (ornithine decarboxylase pathway)
+MF0037	arginine degradation (AST/succinyltransferase pathway)
+MF0038	arginine degradation (arginine:pyruvate transaminase/4-aminobutyrate pathway)
+MF0039	lysine fermentation to acetate and butyrate (3,6-diaminohexanoate pathway)
+MF0040	lysine degradation (cadaverine pathway)
+MF0041	histidine degradation
+MF0042	4-aminobutyrate degradation
+MF0043	arginine degradation (agmatinase pathway)
+MF0044	glycocholate degradation
+MF0045	trehalose degradation
+MF0046	sucrose degradation
+MF0047	lactose and galactose degradation (PTS)
+MF0048	lactose degradation
+MF0049	maltose degradation
+MF0050	melibiose degradation
+MF0051	sucrose degradation (Actinobacteria)
+MF0052	chondroitin sulfate and dermatan sulfate degradation
+MF0053	allose degradation
+MF0054	arabinose degradation
+MF0055	xylose degradation
+MF0056	galactose degradation (Leloir pathway)
+MF0057	alpha-D-glucose and alpha-D-glucose 1-phosphate degradation
+MF0058	fructose degradation
+MF0059	rhamnose degradation
+MF0060	ribose degradation
+MF0061	mannose degradation
+MF0062	starch degradation
+MF0063	fructan degradation
+MF0064	pectin degradation
+MF0065	pectin degradation - 5-dehydro-4-deoxy-D-glucuronate degradation
+MF0066	glycogen metabolism
+MF0067	PHB production
+MF0068	glucarate degradation
+MF0069	galactarate degradation
+MF0070	galactonate degradation
+MF0071	D-galacturonate degradation
+MF0072	ribitol degradation
+MF0073	sorbitol degradation (dehydrogenase)
+MF0074	mannitol degradation
+MF0075	sorbitol degradation (phosphotransferase)/sorbose degradation
+MF0076	arabitol degradation
+MF0077	galactitol degradation
+MF0078	xylitol degradation
+MF0079	bifidobacterium shunt
+MF0080	Glycolysis (preparatory phase)
+MF0081	Glycolysis (pay-off phase)
+MF0082	pentose phosphate pathway (oxidative branch)
+MF0083	pyruvate dehydrogenase complex
+MF0084	pyruvate:ferredoxin oxidoreductase
+MF0085	pyruvate:formate lyase
+MF0086	TCA cycle
+MF0087	TCA cycle (Mycobacterium pathway)
+MF0088	TCA cycle (Helicobacter pathway)
+MF0089	Entner-Doudoroff pathway I
+MF0090	pentose phosphate pathway (non-oxidative branch)
+MF0091	beta-D-glucuronide and D-glucuronate degradation
+MF0092	kdo2-lipid A synthesis
+MF0093	homoacetogenesis
+MF0094	hydrogen metabolism
+MF0095	NADH:ferredoxin oxidoreductase
+MF0096	methane oxidation
+MF0097	Methanogenesis - methyl-coM
+MF0098	methanogenesis from carbon dioxide
+MF0099	methanol conversion
+MF0100	Sulfate reduction (dissimilatory)
+MF0101	Sulfate reduction (assimilatory)
+MF0102	mucin degradation
+MF0103	nitrate reduction (assimilatory)
+MF0104	nitrate reduction (dissimilatory)
+MF0105	nitrate reduction (denitrification)
+MF0106	anaerobic fatty acid beta-oxidation
+MF0107	glycerol degradation (propanediol pathway)
+MF0108	glycerol degradation (dihydroxyacetone pathway)
+MF0109	glycerol degradation (glycerol kinase pathway)
+MF0110	glyoxylate bypass
+MF0111	triacylglycerol degradation
+MF0112	acetate to acetyl-CoA
+MF0113	acetyl-CoA to acetate
+MF0114	acetyl-CoA to crotonyl-CoA
+MF0115	Crotonyl-coA from succinate
+MF0116	butyrate production via transferase
+MF0117	butyrate production via kinase
+MF0118	formate conversion
+MF0119	lactate production
+MF0120	lactate consumption
+MF0121	propionate production (acrylate pathway)
+MF0122	propionate production (succinate pathway)
+MF0123	propionate production (propanediol pathway)
+MF0124	Fucose degradation
+MF0125	propionate production via kinase
+MF0126	propionate production via transferase
+MF0127	Succinate production
+MF0128	Propionate conversion to succinate
+MF0129	catalase
+MF0130	peroxidase
+MF0131	superoxide dismutase
+MF0132	superoxide reductase
+MF0133	menaquinone production

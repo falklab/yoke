@@ -165,10 +165,17 @@ def test_score_cli(
     cli_function_modules(
         kegg_mgs, "GBM", tmp_path, "GBM"
     )
+    cli_function_modules(
+        kegg_mgs, "BSB", tmp_path, "BSB"
+    )
     for tbl in kegg_mgs:
         assert (
                 tmp_path /
                 f"{tbl.name.replace(".tsv.gz", "")}.GBM.mat"
+        ).exists()
+        assert (
+                tmp_path /
+                f"{tbl.name.replace(".tsv.gz", "")}.BSB.mat"
         ).exists()
         # Ensure uncompressed versions tidied up
         assert not tbl.with_suffix("").exists()

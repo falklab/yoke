@@ -19,6 +19,14 @@ To install in a conda or mamba environment, make sure you have pip installed in 
 the system pip, then install as above.
 
 ## CLI Tools
+All of the CLI tools are accessible via `yoke`.
+Run `yoke` to see a list of available tools.
+
+Each individual tool will have its own help page, accessible via 
+`yoke <tool> --help`.
+
+Some of the tools are described below as well.
+
 ### Function Counts
 You can produce tables with counts of how many times each function appears in each MAG, grouped by MGS.
 A single table per MGS will be produced.
@@ -41,3 +49,27 @@ yoke function_counts \
 You can then summarise these results to different taxonomic levels using `yoke function_summarise`.
 See `yoke function_summarise --help` for usage.
 
+### Module Scores
+You can produce a table of module scores for the MAGs in a MGS.
+There are a number of bundled modules which can be selected, or you can provide your own.
+The input is the table of functional annotations per MAG produced by `function_counts`.
+
+Example usage for scoring BSB gut-brain modules, which are based on KEGG orthologs.
+```
+yoke module_score \
+-i KEGG/MGS.* \
+-o module_scores/ \
+-m BSB \
+-n BSB
+```
+
+For each MGS, four output files will be produced:
+- `MGS.1.{mod}.mat`: Matrix of counts of genes in each module for each MAG in the MGS.
+- `MGS.1.{mod}.MODscore`: Module scores for each MAG in the MGS.
+- `MGS.1.{mod}.KOused`: Which functions participated in each module for each MAG in the MGS.
+- `MGS.1.{mod}.descr`: Decription of each module which appears in the MGS.
+
+The bundled modules are:
+- BSB: Human gut-brain modules. Based on KEGG orthologs.
+- GBM: Human gut metabolism modules. Based on KEGG orthologs.
+  ([Vieira-Silva et al., 2016](https://doi.org/10.1038/nmicrobiol.2016.88))

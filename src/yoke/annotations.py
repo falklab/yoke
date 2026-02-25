@@ -286,12 +286,13 @@ class RTKModules:
             self,
             definition: Union[str, pathlib.Path],
             description: Union[str, pathlib.Path],
-            hierarchy: Union[str, pathlib.Path],
+            hierarchy: Optional[Union[str, pathlib.Path]],
             name: str
     ) -> None:
         self.__definition: pathlib.Path = pathlib.Path(definition)
         self.__description: pathlib.Path = pathlib.Path(description)
-        self.__hierarchy: pathlib.Path = pathlib.Path(hierarchy)
+        self.__hierarchy: Optional[pathlib.Path] = (
+            pathlib.Path(hierarchy) if hierarchy is not None else None)
         self.__name: str = name
 
     @property
@@ -405,8 +406,9 @@ class RTKModules:
             f"-o {output_prefix} "
             f"-refMods {self.definition} "
             f"-description {self.description} "
-            f"-hiera {self.hierarchy}"
         )
+        if not self.hierarchy is None:
+            rtk_cmd += f"-hierarchy {self.hierarchy} "
 
         # Convert rtk params to command options
         logger.debug("Format extra RTK arguments: %s", rtk_params)
@@ -447,8 +449,12 @@ def _combine_mgs(
     can be used to get a table of all MGS with a certain phenotype, or from
     a given genus etc.
     """
+
+    # Check whether files appear to be gzipped
+    suffix: str = "tsv" if (mag_counts / f"{mgs[0]}.tsv").exists() else "tsv.gz"
     mgs_dfs: List[pd.DataFrame] = [
-        pd.read_csv(mag_counts / f"{x}.tsv", sep="\t", index_col=0) for x in mgs
+        pd.read_csv(mag_counts / f"{x}.{suffix}", sep="\t", index_col=0)
+        for x in mgs
     ]
     comb_df: pd.DataFrame = pd.concat(mgs_dfs, axis=1)
     return comb_df
@@ -675,6 +681,8 @@ def cli_function_modules(
             hierarchy=hierarchy,
             name=name
         )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     for tbl in tables:
         with GzipManager(str(tbl)) as tbl_dc:

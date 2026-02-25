@@ -657,8 +657,6 @@ def cli_function_modules(
         x.KOused
     """
 
-    logger.setLevel(logging.INFO)
-
     logger.info("module_score")
     logger.info("|- Parameters -|")
     logger.info("Tables: %s tables", len(tables))
@@ -671,9 +669,11 @@ def cli_function_modules(
 
     mods: RTKModules
     if modules is not None:
+        logger.debug("Loading bundled modules: %s", modules)
         mods = RTKModules.from_bundled(modules)
         name = modules
     else:
+        logger.debug("Loading custom modules")
         # Assume argparse types have done the required existence checks
         mods = RTKModules(
             definition=definition,
@@ -685,9 +685,11 @@ def cli_function_modules(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for tbl in tables:
+        logger.debug("Processing table %s", tbl)
         with GzipManager(str(tbl)) as tbl_dc:
             tbl_name: str = ".".join(tbl_dc.name.split(".")[:-1])
             prefix_out: pathlib.Path = output_dir / f"{tbl_name}.{name}"
+            logger.debug("Output prefix: %s", prefix_out)
             mods.score_table(
                 pth_mgs_tbl=tbl_dc,
                 output_prefix=prefix_out

@@ -280,6 +280,10 @@ def cli():
     )
     args = parser.parse_args()
 
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug mode enabled")
+
     # Try subparser or print top level help
     if "func" in args:
         args.func(args)

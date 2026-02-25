@@ -17,7 +17,10 @@ class GzipManager:
         if self.gzipped:
             logger.debug(f"Unzipping file {self.pth}")
             cmd = f"gunzip -c {self.pth} > {self.pth_unzipped}"
-            subprocess.run(cmd, shell=True, check=True)
+            res = subprocess.run(cmd, shell=True, check=True)
+            if res.returncode != 0:
+                raise RuntimeError(
+                    f"gunzip failed with return code {res.returncode}")
             return pathlib.Path(f"{self.pth_unzipped}")
         else:
             logger.debug(f"File {self.pth} is already unzipped")

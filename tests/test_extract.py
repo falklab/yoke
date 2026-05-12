@@ -53,14 +53,6 @@ def example_assembly_dir() -> Path:
     """Assembly directory for tests."""
     return (Path("tests") / "data").resolve()
 
-# def test_get_contig_link_file():
-#     assert False
-
-
-# def test_contig_fasta():
-#     assert False
-
-
 def test_from_assembly_dir(
         example_mag: MAG,
         example_assembly_dir

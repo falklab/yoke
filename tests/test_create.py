@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import pytest
 
-from create import Contig
+from yoke.create import Contig
 
 @pytest.fixture
 def simple_contig() -> Contig:

@@ -5,9 +5,9 @@ from typing import NamedTuple, List, Dict
 import pandas as pd
 from _pytest.fixtures import fixture
 
-import create
-from create import MGS
-from annotations import HierarchicalSchema, RTKModules, cli_function_modules
+from yoke import create
+from yoke.create import MGS
+from yoke.annotations import HierarchicalSchema, RTKModules, cli_function_modules
 
 AnnPaths = namedtuple("AnnPaths", "annotation description")
 

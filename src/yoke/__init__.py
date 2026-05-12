@@ -5,7 +5,7 @@ import pathlib
 from ast import parse
 
 from yoke.data.utils import BundledModules
-from yoke import annotations
+from yoke import annotations, extract
 from yoke.create import MGS, MAG, Contig, read_mag_vs_gc
 
 # Configure logging
@@ -278,6 +278,92 @@ def cli():
             hierarchy = x.hierarchy
         )
     )
+
+    parser_extract_contigs = subparsers.add_parser(
+        "extract_contigs",
+        help="Make FASTA files containing contigs for MAGs",
+        description=(
+            "Create FASTA files containing contigs for all MAGS meeting the "
+            "quality criteria. "
+            "Contigs are identified using results from the assembly and "
+            "binning directories, which are prior to the gene catalog "
+            "creation. "
+            "This tool will try to identify when a sample was binned "
+            "individually or as a coassembly. "
+            "Output will be one gzipped file per MAG in the output directory, "
+            "with the suffix '.contigs.fna.gz'. "
+            "If no contigs are found for a MAG, then an empty file will be "
+            "created. "
+            "This should only happen if you have altered the binning results "
+            "without rerunning the gene catalog, leading to the MAGvsGC and "
+            "assemblies being out of sync."
+        )
+    )
+    parser_extract_contigs.add_argument(
+        "-m",
+        "--magvsgc",
+        help="MAGvsGC file, which defines for each MAG it's MGS, and the "
+             "genes on each of it's contigs. Can be gzipped.",
+        type=pathlib.Path,
+        required=True
+    )
+    parser_extract_contigs.add_argument(
+        "-a",
+        "--assembly",
+        help="Directory containing all assembly directories.",
+        type=pathlib.Path,
+        required=True
+    )
+    parser_extract_contigs.add_argument(
+        "-o",
+        "--output",
+        help="Directory to write output to. Existing file will be overwritten.",
+        type=pathlib.Path,
+        default=pathlib.Path(os.getcwd()) / "mag_fna"
+    )
+    parser_extract_contigs.add_argument(
+        "--completeness",
+        help="Minimum completeness of MAG to consider.",
+        type=float,
+        default=0
+    )
+    parser_extract_contigs.add_argument(
+        "--contamination",
+        help="Maximum contamination of MAG to consider.",
+        type=float,
+        default=100
+    )
+    parser_extract_contigs.add_argument(
+        "--binner",
+        help=(
+            "Binner results to use. Should be the folder name to look for "
+            "within Assembly/Binning/. If not given defaults to the first "
+            "directory found."
+        ),
+        default=None,
+        required=False
+    )
+    parser_extract_contigs.add_argument(
+        "--processes",
+        help=(
+            "Number of processes to use. Runs output for one assembly in each "
+            "process. "
+        ),
+        type=int,
+        default=1
+    )
+    parser_extract_contigs.set_defaults(
+        func=lambda x: extract.cli_extract_contigs(
+            magvsgc=x.magvsgc,
+            assembly=x.assembly,
+            output=x.output,
+            completeness=x.completeness,
+            contamination=x.contamination,
+            processes=x.processes,
+            binner=x.binner
+        )
+    )
+
     args = parser.parse_args()
 
     if args.debug:

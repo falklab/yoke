@@ -73,3 +73,28 @@ The bundled modules are:
 - BSB: Human gut-brain modules. Based on KEGG orthologs.
 - GBM: Human gut metabolism modules. Based on KEGG orthologs.
   ([Vieira-Silva et al., 2016](https://doi.org/10.1038/nmicrobiol.2016.88))
+
+### Extract Contigs
+Produce FASTA files with the contigs for each MAG.
+This can be useful if you want to use MAGs for some analysis that needs a whole(ish)
+genome context.
+I have tried to make sensible decision to minimise runtime: all MAGs from one assembly
+get written during the same linear scan through the assembly, and multiprocessing is
+supported to handle multiple assemblies simultaneously (though I'm not sure it actually 
+improves speed).
+Output is one gzipped fasta file per MAG, with name `{mag_name}.contigs.fna.gz`.
+
+When you have run multiple binners on the same assemblies, please ensure you specify
+`--binner`, to ensure the correct binner results are used.
+
+Example usage
+```
+yoke extract_contigs \
+-m magvsgc/MAGvsGC.txt.gz \
+-a assemblies/ \
+-o output/ \
+--completeness 50 \
+--contamination 10 \
+--binner SB \
+--processes 4
+```

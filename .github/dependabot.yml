@@ -9,6 +9,9 @@ updates:
         patterns: ["*"]
   - package-ecosystem: uv
     directory: /
+    # Only update uv.lock; version ranges in pyproject.toml are set by hand
+    # (e.g. the pandas<3 cap) and raising lower bounds affects users
+    versioning-strategy: lockfile-only
     schedule:
       interval: monthly
     groups:

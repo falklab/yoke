@@ -2,27 +2,53 @@
 A python package with CLI tools for doing assorted bits of pangenomic and functional analysis with MG-TK outputs.
 
 ## Installation
-There are currently some problems building recent `scipy` with the versions given in the current `toml`.
-I will resolve these eventually, but for now, what works is to make an environment with the following
-version
-```micromamba create --name yoke pip python==3.12 cmake gfortran libopenblas scipy==1.15.1```
-then
-```pip install git+https://github.com/falklab/yoke.git```
+Yoke requires Python 3.12 or later.
+Releases are tagged `vX.Y.Z`; the available versions and their changes are listed on the
+[releases page](https://github.com/falklab/yoke/releases) and in `CHANGELOG.md`.
 
-## Update
-I'm not doing proper versioning currently.
-To force update, use:
-```pip install --upgrade --force-reinstall git+https://github.com/falklab/yoke.git```
+Install a specific release with pip
+```
+pip install git+https://github.com/falklab/yoke.git@vX.Y.Z
+```
+or as a standalone command line tool with [uv](https://docs.astral.sh/uv/)
+```
+uv tool install git+https://github.com/falklab/yoke.git@vX.Y.Z
+```
+Omitting `@vX.Y.Z` installs the latest development version from `main`.
 
 ### Install in a conda/mamba env
 To install in a conda or mamba environment, make sure you have pip installed in the environment rather than using
 the system pip, then install as above.
+```
+micromamba create --name yoke --override-channels \
+    -c https://prefix.dev/conda-forge -c https://prefix.dev/bioconda \
+    python=3.12 pip rtk
+micromamba activate yoke
+pip install git+https://github.com/falklab/yoke.git@vX.Y.Z
+```
+
+### External tools
+`yoke module_score` uses [rtk](https://github.com/hildebra/rtk), which must be available on your `PATH`.
+It can be installed from bioconda, as in the example above.
+The examples use the [prefix.dev](https://prefix.dev) mirrors of conda-forge and bioconda, as anaconda.org is
+blocked on some institute networks.
+
+## Update
+To move to a different release, install again with the new tag
+```
+pip install --upgrade git+https://github.com/falklab/yoke.git@vX.Y.Z
+```
+`yoke --version` shows the installed version.
+
+## Development
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setting up a development environment, code style, testing, and
+the branching and release process.
 
 ## CLI Tools
 All of the CLI tools are accessible via `yoke`.
 Run `yoke` to see a list of available tools.
 
-Each individual tool will have its own help page, accessible via 
+Each individual tool will have its own help page, accessible via
 `yoke <tool> --help`.
 
 Some of the tools are described below as well.
@@ -108,7 +134,7 @@ This can be useful if you want to use MAGs for some analysis that needs a whole(
 genome context.
 I have tried to make sensible decision to minimise runtime: all MAGs from one assembly
 get written during the same linear scan through the assembly, and multiprocessing is
-supported to handle multiple assemblies simultaneously (though I'm not sure it actually 
+supported to handle multiple assemblies simultaneously (though I'm not sure it actually
 improves speed).
 Output is one gzipped fasta file per MAG, with name `{mag_name}.contigs.fna.gz`.
 

@@ -1,9 +1,5 @@
-import pathlib
-
-from _pytest.fixtures import fixture
-
 from yoke.annotations import RTKModules
-from yoke.data.utils import ModuleInfo, BundledModules
+from yoke.data.utils import BundledModules
 
 
 def test_gbm_enum():
@@ -15,6 +11,7 @@ def test_gbm_enum():
     assert gbm.value.description.exists()
     assert gbm.value.hierarchy.exists()
 
+
 def test_gbm_from_string():
     """Test that GBM modules can be created from string"""
 
@@ -23,4 +20,3 @@ def test_gbm_from_string():
     assert gbm.definition.exists()
     assert gbm.description.exists()
     assert gbm.hierarchy.exists()
-

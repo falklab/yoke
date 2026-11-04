@@ -1,32 +1,78 @@
-[tool.poetry]
+[project]
 name = "yoke"
 version = "0.1.0"
 description = "Connecting metagenomic species and their functions."
-authors = ["Anthony Duncan <anthony.duncan@earlham.ac.uk>"]
+authors = [{ name = "Anthony Duncan", email = "anthony.duncan@earlham.ac.uk" }]
 readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.10.1",
+    "multimethod>=1.12",
+    "networkx>=3.3",
+    "pandas>=2.2.2,<3",
+    "plotnine>=0.14.5",
+    "pyfastx>=2.3.0",
+    "scipy>=1.15.2",
+    "statsmodels>=0.14.4",
+    "tqdm>=4.66.5",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-pandas = "^2.2.2"
-networkx = "^3.3"
-multimethod = "^1.12"
-tqdm = "^4.66.5"
-matplotlib = "^3.10.1"
-scipy = "^1.15.2"
-plotnine = "^0.14.5"
-pyfaidx = "^0.9.0.4"
-pyfastx = "^2.3.0"
-statsmodels = "^0.14.4"
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.2.1"
-snakeviz = "^2.2.2"
-
-[tool.poetry.scripts]
+[project.scripts]
 yoke = "yoke:cli"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0",
+    "pytest>=8.2.1",
+    "pytest-cov>=6.0",
+    "ruff>=0.14",
+    "snakeviz>=2.2.2",
+]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 79
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.ruff.lint]
+# E/W: pycodestyle (PEP 8), F: pyflakes, I: isort, UP: pyupgrade,
+# B: bugbear, D: pydocstyle
+select = ["E", "W", "F", "I", "UP", "B", "D"]
+# D1xx (missing docstrings) are not enforced yet
+ignore = ["D1"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["yoke"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "local_data: needs large local test data not in the repo (YOKE_LOCAL_DATA)",
+    "requires_rtk: needs the rtk binary on PATH",
+    "slow: takes more than a couple of seconds; skipped by the pre-commit hook",
+]
+
+[tool.coverage.run]
+source = ["yoke"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Baseline at time of setup; raise as coverage improves
+fail_under = 45

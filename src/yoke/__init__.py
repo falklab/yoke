@@ -1,27 +1,34 @@
+"""Pangenomic and functional analysis tools for MG-TK outputs."""
+
 import argparse
+import importlib.metadata
 import logging
 import os
 import pathlib
-from ast import parse
 
-from yoke.data.utils import BundledModules
 from yoke import annotations, extract
-from yoke.create import MGS, MAG, Contig, read_mag_vs_gc
+from yoke.create import MAG, MGS, Contig, read_mag_vs_gc
+from yoke.data.utils import BundledModules
+
+__version__: str = importlib.metadata.version("yoke")
+
+# Re-exported for convenience (e.g. `from yoke import MGS`)
+__all__ = ["MAG", "MGS", "Contig", "__version__", "cli", "read_mag_vs_gc"]
 
 # Configure logging
 logger: logging.Logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 ch: logging.Handler = logging.StreamHandler()
 fm: logging.Formatter = logging.Formatter(
-    fmt='%(levelname)s [%(name)s] [%(asctime)s]: %(message)s',
-    datefmt='%d/%m/%Y %I:%M:%S'
+    fmt="%(levelname)s [%(name)s] [%(asctime)s]: %(message)s",
+    datefmt="%d/%m/%Y %I:%M:%S",
 )
 ch.setFormatter(fm)
 logger.addHandler(ch)
 
-def cli():
-    """CLI entrypoint for yoke"""
 
+def cli():
+    """CLI entrypoint for yoke."""
     # For CLI, default to info level logging to give some indication of
     # progress
     logger.setLevel(logging.INFO)
@@ -29,12 +36,13 @@ def cli():
     parser = argparse.ArgumentParser(
         prog="yoke",
         description="Simple pangenome and functional tools for metagenomes",
-        epilog="yoke is intended primarily for use with MG-TK output"
+        epilog="yoke is intended primarily for use with MG-TK output",
     )
     parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Print debug messages to stdout"
+        "--debug", action="store_true", help="Print debug messages to stdout"
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
 
     subparsers = parser.add_subparsers()
@@ -50,8 +58,8 @@ def cli():
             "MGS it belongs to, and a column listing the identifiers for all "
             "genes in the MGS as a comma separated list, with double comma "
             "indicating the end of a contig. The gene annotations are a "
-            "tab-separated file with two columns: gene identifier and function "
-            "identifier."
+            "tab-separated file with two columns: gene identifier and "
+            "function identifier. "
             "Output files will be named {output}/{name}/{MGS}.tsv, and will "
             "contain a column for each MAG, and a row for each function ID. "
             "This is also converted to presence/absence of functions in "
@@ -62,13 +70,13 @@ def cli():
             "in the MAGs. "
             "The mean count per MAG for each MGS is combined in "
             "{output}/{name.tsv}."
-        )
+        ),
     )
     parser_function_counts.add_argument(
         "-m",
         "--magvsgc",
         help="MAGvsGC file, which defines for each MAG it's MGS, and the "
-             "genes on each of it's contigs. Can be gzipped.",
+        "genes on each of it's contigs. Can be gzipped.",
         type=pathlib.Path,
         required=True,
     )
@@ -76,23 +84,25 @@ def cli():
         "-a",
         "--annotations",
         help="Gene annotation file, containing pairs of genes and functions. "
-             "Can be gzipped.",
+        "Can be gzipped.",
         type=pathlib.Path,
-        required=True
+        required=True,
     )
     parser_function_counts.add_argument(
         "-d",
         "--descriptions",
         help="Description file, giving description of each function.",
         type=pathlib.Path,
-        required=True
+        required=True,
     )
     parser_function_counts.add_argument(
         "-o",
         "--output",
-        help="Directory to write output to. Existing file will be overwritten.",
+        help=(
+            "Directory to write output to. Existing file will be overwritten."
+        ),
         type=pathlib.Path,
-        default=pathlib.Path(os.getcwd()) / "function_counts"
+        default=pathlib.Path(os.getcwd()) / "function_counts",
     )
     parser_function_counts.add_argument(
         "-n",
@@ -100,24 +110,24 @@ def cli():
         help="Name of annotation scheme (e.g KEGG, eggNOG, etc.) Only used to "
         "organise output.",
         type=str,
-        required=True
+        required=True,
     )
     parser_function_counts.add_argument(
         "--completeness",
         help="Minimum completeness of MAG to consider.",
         type=float,
-        default=0
+        default=0,
     )
     parser_function_counts.add_argument(
         "--contamination",
         help="Maximum contamination of MAG to consider.",
         type=float,
-        default=100
+        default=100,
     )
     parser_function_counts.add_argument(
         "--compress",
         help="Compress each output table using gzip compression.",
-        action="store_true"
+        action="store_true",
     )
     parser_function_counts.set_defaults(
         func=lambda x: annotations.cli_function_count(
@@ -128,14 +138,14 @@ def cli():
             name=x.name,
             completeness=x.completeness,
             contamination=x.contamination,
-            compress=x.compress
+            compress=x.compress,
         )
     )
 
     parser_function_summarise = subparsers.add_parser(
         "function_summarise",
         help="Summarise function counts in MAGs previously generated by"
-             "`yoke function_count` to different levels of taxonomy.",
+        "`yoke function_count` to different levels of taxonomy.",
         description=(
             "Summarises the function counts in each MAG previously generated "
             "by `yoke function_count` to different levels of taxonomy. "
@@ -144,13 +154,13 @@ def cli():
             "The MAGvsGC file is required as it gives taxonomy for each MGS, "
             "but counts are not recalculated, and are instead read from "
             "tables in the counts argument. "
-        )
+        ),
     )
     parser_function_summarise.add_argument(
         "-m",
         "--magvsgc",
         help="MAGvsGC file, which defines for each MAG it's MGS, and the "
-             "genes on each of it's contigs.",
+        "genes on each of it's contigs.",
         type=pathlib.Path,
         required=True,
     )
@@ -159,32 +169,48 @@ def cli():
         "--counts",
         help="Directory containing output of `yoke function_count`.",
         type=pathlib.Path,
-        required=True
+        required=True,
     )
     parser_function_summarise.add_argument(
         "-r",
         "--ranks",
         help="Taxonomic ranks at which to summarise the counts.",
-        choices=['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus',
-                 'Species'],
-        default=['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus',
-                 'Species'],
-        nargs='+',
+        choices=[
+            "Domain",
+            "Phylum",
+            "Class",
+            "Order",
+            "Family",
+            "Genus",
+            "Species",
+        ],
+        default=[
+            "Domain",
+            "Phylum",
+            "Class",
+            "Order",
+            "Family",
+            "Genus",
+            "Species",
+        ],
+        nargs="+",
         type=str,
-        required=True
+        required=True,
     )
     parser_function_summarise.add_argument(
         "-o",
         "--output",
-        help="Directory to write output to. Existing files will be overwritten.",
+        help=(
+            "Directory to write output to. Existing files will be overwritten."
+        ),
         type=pathlib.Path,
-        default=pathlib.Path(os.getcwd()) / "function_counts"
+        default=pathlib.Path(os.getcwd()) / "function_counts",
     )
     parser_function_summarise.add_argument(
         "--uncompressed",
         help="Is the MAGvsGC not compressed?",
         action="store_false",
-        default=True
+        default=True,
     )
     parser_function_summarise.set_defaults(
         func=lambda x: annotations.cli_function_hoist(
@@ -193,7 +219,7 @@ def cli():
             output=x.output,
             ranks=x.ranks,
             compressed=x.uncompressed,
-            cols = None
+            cols=None,
         )
     )
 
@@ -203,8 +229,9 @@ def cli():
             "Score the presence of modules based on tables of function counts "
             "previously generated by `yoke function_count`."
         ),
-        description="Score the presence of modules based on tables of function "
-        "counts previously generated by `yoke function_count`. Modules are "
+        description="Score the presence of modules based on tables of "
+        "function counts previously generated by `yoke function_counts`. "
+        "Modules are "
         "expected to be defined in Omixer format. Some modules are bundled "
         "(see -m), but custom modules can also be provided as files. "
         "Output files will be named "
@@ -216,7 +243,7 @@ def cli():
         help="MGS function count tables to score. Can be gzipped.",
         type=pathlib.Path,
         required=True,
-        nargs="+"
+        nargs="+",
     )
     parser_module_score.add_argument(
         "-o",
@@ -225,14 +252,14 @@ def cli():
             "Directory to write output to. Existing files will be overwritten."
         ),
         type=pathlib.Path,
-        required=True
+        required=True,
     )
     parser_module_score.add_argument(
         "-m",
         "--module_bundled",
         help="Named of bundled module file to use.",
         choices=BundledModules._member_names_,
-        type=str
+        type=str,
     )
     parser_module_score.add_argument(
         "-n",
@@ -241,7 +268,7 @@ def cli():
             "Short name of modules, ussed in organising output. Ignored if -m "
             "is specified."
         ),
-        type=str
+        type=str,
     )
     parser_module_score.add_argument(
         "--definition",
@@ -249,7 +276,7 @@ def cli():
             "Path to module definition file in Omixer format. Ignored if -m "
             "is specified."
         ),
-        type=pathlib.Path
+        type=pathlib.Path,
     )
     parser_module_score.add_argument(
         "--description",
@@ -257,7 +284,7 @@ def cli():
             "Path to module description file in Omixer format. Ignored if -m "
             "is specified."
         ),
-        type=pathlib.Path
+        type=pathlib.Path,
     )
     parser_module_score.add_argument(
         "--hierarchy",
@@ -265,17 +292,17 @@ def cli():
             "Path to module hierarchy file in Omixer format. Ignored if -m "
             "is specified"
         ),
-        type=pathlib.Path
+        type=pathlib.Path,
     )
     parser_module_score.set_defaults(
         func=lambda x: annotations.cli_function_modules(
-            tables = x.input_tables,
-            name = x.name,
-            output_dir = x.output_dir,
-            modules = x.module_bundled,
-            definition = x.definition,
-            description = x.description,
-            hierarchy = x.hierarchy
+            tables=x.input_tables,
+            name=x.name,
+            output_dir=x.output_dir,
+            modules=x.module_bundled,
+            definition=x.definition,
+            description=x.description,
+            hierarchy=x.hierarchy,
         )
     )
 
@@ -296,7 +323,7 @@ def cli():
             "two levels once NAs are removed; other columns are skipped. "
             "Output is a table indexed by metadata column and function, with "
             "a statistic, p-value and adjusted p-value for each test."
-        )
+        ),
     )
     parser_function_enrichment.add_argument(
         "-i",
@@ -304,7 +331,7 @@ def cli():
         help="Function count tables. Can be gzipped.",
         type=pathlib.Path,
         nargs="+",
-        required=True
+        required=True,
     )
     parser_function_enrichment.add_argument(
         "-m",
@@ -314,14 +341,14 @@ def cli():
             "first column."
         ),
         type=pathlib.Path,
-        required=True
+        required=True,
     )
     parser_function_enrichment.add_argument(
         "-o",
         "--output",
         help="File to write results to. Existing file will be overwritten.",
         type=pathlib.Path,
-        default=pathlib.Path(os.getcwd()) / "function_enrichment.tsv"
+        default=pathlib.Path(os.getcwd()) / "function_enrichment.tsv",
     )
     parser_function_enrichment.add_argument(
         "-t",
@@ -329,7 +356,7 @@ def cli():
         help="Exact tests to carry out.",
         nargs="+",
         choices=["fisher", "barnard", "boschloo"],
-        default=["fisher", "barnard"]
+        default=["fisher", "barnard"],
     )
     parser_function_enrichment.add_argument(
         "--adj-method",
@@ -337,14 +364,14 @@ def cli():
             "Multiple test correction method. Accepts any method from "
             "statsmodels.stats.multitest.multipletests."
         ),
-        default="fdr_bh"
+        default="fdr_bh",
     )
     parser_function_enrichment.add_argument(
         "-c",
         "--columns",
         help="Metadata columns to test. Defaults to all columns.",
         nargs="+",
-        default=None
+        default=None,
     )
     parser_function_enrichment.set_defaults(
         func=lambda x: annotations.cli_function_enrichment(
@@ -353,7 +380,7 @@ def cli():
             output=x.output,
             tests=x.tests,
             adj_method=x.adj_method,
-            columns=x.columns
+            columns=x.columns,
         )
     )
 
@@ -375,41 +402,43 @@ def cli():
             "This should only happen if you have altered the binning results "
             "without rerunning the gene catalog, leading to the MAGvsGC and "
             "assemblies being out of sync."
-        )
+        ),
     )
     parser_extract_contigs.add_argument(
         "-m",
         "--magvsgc",
         help="MAGvsGC file, which defines for each MAG it's MGS, and the "
-             "genes on each of it's contigs. Can be gzipped.",
+        "genes on each of it's contigs. Can be gzipped.",
         type=pathlib.Path,
-        required=True
+        required=True,
     )
     parser_extract_contigs.add_argument(
         "-a",
         "--assembly",
         help="Directory containing all assembly directories.",
         type=pathlib.Path,
-        required=True
+        required=True,
     )
     parser_extract_contigs.add_argument(
         "-o",
         "--output",
-        help="Directory to write output to. Existing file will be overwritten.",
+        help=(
+            "Directory to write output to. Existing file will be overwritten."
+        ),
         type=pathlib.Path,
-        default=pathlib.Path(os.getcwd()) / "mag_fna"
+        default=pathlib.Path(os.getcwd()) / "mag_fna",
     )
     parser_extract_contigs.add_argument(
         "--completeness",
         help="Minimum completeness of MAG to consider.",
         type=float,
-        default=0
+        default=0,
     )
     parser_extract_contigs.add_argument(
         "--contamination",
         help="Maximum contamination of MAG to consider.",
         type=float,
-        default=100
+        default=100,
     )
     parser_extract_contigs.add_argument(
         "--binner",
@@ -419,7 +448,7 @@ def cli():
             "directory found."
         ),
         default=None,
-        required=False
+        required=False,
     )
     parser_extract_contigs.add_argument(
         "--processes",
@@ -428,7 +457,7 @@ def cli():
             "process. "
         ),
         type=int,
-        default=1
+        default=1,
     )
     parser_extract_contigs.set_defaults(
         func=lambda x: extract.cli_extract_contigs(
@@ -438,7 +467,7 @@ def cli():
             completeness=x.completeness,
             contamination=x.contamination,
             processes=x.processes,
-            binner=x.binner
+            binner=x.binner,
         )
     )
 

@@ -4,8 +4,44 @@
 
 ### Option 1: VS Code devcontainer (recommended)
 Open the repository in VS Code and choose **Dev Containers: Reopen in Container**.
-The container has Python 3.12, [uv](https://docs.astral.sh/uv/) and `rtk`. On first start it creates the
+The container has Python 3.12, [uv](https://docs.astral.sh/uv/), `rtk` and the
+[GitHub CLI](https://cli.github.com/) (`gh`). On first start it creates the
 environment (`.venv`) and installs the pre-commit hooks. Files are formatted on save.
+
+#### Claude Code in the devcontainer
+The Claude Code VS Code extension is installed in the container automatically (it is listed in
+`devcontainer.json`). Your login, sessions
+and memory live in a Docker named volume (`claude-code-config-<id>`, one per clone) mounted at
+`/home/vscode/.claude`, so they survive container rebuilds. Log in once after the first build; you will
+not be asked again.
+
+The volume is stored by Docker, not in the repository, and no host paths are committed. Put personal
+Claude settings in `.claude/settings.local.json` (gitignored); project-wide ones go in
+`.claude/settings.json` (committed).
+
+To log out completely or start fresh, stop the container, find the volume with
+`docker volume ls | grep claude-code-config` and remove it with `docker volume rm <name>`. To share one
+login across all your devcontainers, change the volume name in `devcontainer.json` to a fixed name such as
+`claude-code-config` locally, but don't commit that change.
+
+#### GitHub CLI in the devcontainer
+Log in once inside the container:
+```
+gh auth login        # GitHub.com, HTTPS, then log in with a web browser
+gh auth status       # check
+```
+`gh` keeps its login in `~/.config/gh`. That directory is a Docker named volume (`gh-config-<id>`, one
+per clone), so the login survives container restarts and rebuilds. The container has no system keyring,
+so the token is stored in plain text in `~/.config/gh/hosts.yml` inside the volume. Nothing is written to the
+repository.
+
+`git push` and `git pull` over HTTPS go through VS Code's credential forwarding from the host. If your host
+gitconfig sets `gh auth git-credential` as the GitHub credential helper, VS Code copies that setting into the
+container and git uses the container's `gh` login. To make git use `gh` in the container even if your host
+doesn't, run `gh auth setup-git` once after logging in.
+
+To log out, run `gh auth logout`. To start fresh, remove the volume as described for Claude Code above
+(`docker volume ls | grep gh-config`).
 
 ### Option 2: Local
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then from the repository root

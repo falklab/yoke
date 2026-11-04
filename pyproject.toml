@@ -32,3 +32,28 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 79
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.ruff.lint]
+# E/W: pycodestyle (PEP 8), F: pyflakes, I: isort, UP: pyupgrade,
+# B: bugbear, D: pydocstyle
+select = ["E", "W", "F", "I", "UP", "B", "D"]
+# D1xx (missing docstrings) are not enforced yet
+ignore = ["D1"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["yoke"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]

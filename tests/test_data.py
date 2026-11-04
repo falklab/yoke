@@ -15,6 +15,7 @@ def test_gbm_enum():
     assert gbm.value.description.exists()
     assert gbm.value.hierarchy.exists()
 
+
 def test_gbm_from_string():
     """Test that GBM modules can be created from string"""
 
@@ -23,4 +24,3 @@ def test_gbm_from_string():
     assert gbm.definition.exists()
     assert gbm.description.exists()
     assert gbm.hierarchy.exists()
-

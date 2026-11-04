@@ -2,6 +2,7 @@
 
 Provides functions to create and analyse pangenome graphs for MGS objects.
 """
+
 from __future__ import annotations
 from typing import List, Set, Any, NamedTuple, Tuple, Dict
 
@@ -19,10 +20,7 @@ class MGSGraph:
     A pangene graph representing the MAGs in an MGS.
     """
 
-    def __init__(
-            self,
-            mgs: MGS
-    ) -> None:
+    def __init__(self, mgs: MGS) -> None:
         self.__mgs = mgs
         self.__graph = self.__make_graph()
 
@@ -50,13 +48,15 @@ class MGSGraph:
         graph.add_nodes_from(self.mgs.genes)
         # Add all edges
         for a, b, count, contig in self.mgs.edges:
-            graph.add_edge(a, b,
-                           weight=sum(count.values()),
-                           contigs=contig,
-                           mag_count=count,
-                           mag_set=count.keys())
+            graph.add_edge(
+                a,
+                b,
+                weight=sum(count.values()),
+                contigs=contig,
+                mag_count=count,
+                mag_set=count.keys(),
+            )
         return graph
-
 
     def hg_paths(self) -> List[List[int]]:
         """Find all homogenomic paths in the graph.
@@ -81,7 +81,7 @@ class MGSGraph:
                 curr_path = []
                 continue
             mag_sets: List[Set] = [
-                set(x['mag_set']) for x in st.adj[v].values()
+                set(x["mag_set"]) for x in st.adj[v].values()
             ]
             if degree < 3 and set.union(*mag_sets) == mag_sets[0]:
                 curr_path.append(v)
@@ -109,28 +109,32 @@ class MGSGraph:
             # If 3 adjacent vertices, this is the simplest case we could hope
             # for
             if len(adj) == 3:
-                dup_set: Set = set(adj[v]['mag_set'])
+                dup_set: Set = set(adj[v]["mag_set"])
                 neighbours = list(adj.keys())
                 neighbours.remove(v)
-                l_set = set(adj[neighbours[0]]['mag_set'])
-                r_set = set(adj[neighbours[1]]['mag_set'])
+                l_set = set(adj[neighbours[0]]["mag_set"])
+                r_set = set(adj[neighbours[1]]["mag_set"])
                 # Being very strict with criteria
                 # neighbouring bits must be all the same taxa, loop must be a subset
-                if ((l_set == r_set) and (dup_set.issubset(l_set)) and
-                    (len(dup_set) < len(l_set))):
+                if (
+                    (l_set == r_set)
+                    and (dup_set.issubset(l_set))
+                    and (len(dup_set) < len(l_set))
+                ):
                     support_contigs: Dict[str, Set[Contig]] = (
-                        merge_contig_dicts(
-                            [adj[v]['contigs'] for v in adj]
+                        merge_contig_dicts([adj[v]["contigs"] for v in adj])
+                    )
+                    res.append(
+                        TandemIndel(
+                            gene=v,
+                            vertex=v,
+                            duplicated_in=dup_set,
+                            single_in=l_set - dup_set,
+                            contigs=support_contigs,
                         )
                     )
-                    res.append(TandemIndel(
-                        gene=v,
-                        vertex=v,
-                        duplicated_in=dup_set,
-                        single_in=l_set - dup_set,
-                        contigs=support_contigs
-                    ))
         return res
+
 
 class TandemIndel(NamedTuple):
     gene: int
@@ -163,10 +167,7 @@ class TandemIndel(NamedTuple):
         d, s = self.size
         return d / s
 
-    def plot(
-            self,
-            window: int = 5
-    ) -> pn.ggplot:
+    def plot(self, window: int = 5) -> pn.ggplot:
         """Plot showing the region of contigs containing the variant.
 
         Args:
@@ -179,11 +180,9 @@ class TandemIndel(NamedTuple):
                 Contig.get_contexts(
                     contigs=list(self.contigs[d]),
                     genes=[self.gene, self.gene],
-                    flanking=window
-                ).assign(
-                    mag=d,
-                    duplicated=True
-                ) for d in self.duplicated_in
+                    flanking=window,
+                ).assign(mag=d, duplicated=True)
+                for d in self.duplicated_in
             ]
         )
         single_df = pd.concat(
@@ -191,29 +190,28 @@ class TandemIndel(NamedTuple):
                 Contig.get_contexts(
                     contigs=list(self.contigs[s]),
                     genes=[self.gene],
-                    flanking=window
-                ).assign(
-                    mag=s,
-                    duplicated=False
-                ) for s in self.single_in
+                    flanking=window,
+                ).assign(mag=s, duplicated=False)
+                for s in self.single_in
             ]
         )
         # Dummy empty column in single
-        single_df = single_df.rename(columns=dict(zip(
-            range(window + 1, (2 * window) + 2),
-            range(window + 2, (2 * window) + 3)
-        )))
+        single_df = single_df.rename(
+            columns=dict(
+                zip(
+                    range(window + 1, (2 * window) + 2),
+                    range(window + 2, (2 * window) + 3),
+                )
+            )
+        )
         single_df.insert(
-            window + 1,
-            window + 1,
-            pd.Series([None] * single_df.shape[0])
+            window + 1, window + 1, pd.Series([None] * single_df.shape[0])
         )
         df = pd.concat([duplicated_df, single_df])
 
         # Convert to a format plottable by plotnine
         dfs = (
-            df
-            .set_index(["mag", "contig", "duplicated"])
+            df.set_index(["mag", "contig", "duplicated"])
             .stack()
             .to_frame("gene_id")
             .reset_index()
@@ -222,23 +220,12 @@ class TandemIndel(NamedTuple):
 
         contig_count: int = sum(len(x) for x in self.contigs.values())
         plt: pn.ggplot = (
-            pn.ggplot(
-                dfs,
-                pn.aes(
-                    x="position",
-                    y="contig",
-                    color="gene_id"
-                )
-            )
+            pn.ggplot(dfs, pn.aes(x="position", y="contig", color="gene_id"))
             + pn.geom_point()
             + pn.geom_text(
-                mapping=pn.aes(label="gene_id"),
-                nudge_y=0.5,
-                size=5
+                mapping=pn.aes(label="gene_id"), nudge_y=0.5, size=5
             )
-            + pn.guides(
-                color="none"
-            )
+            + pn.guides(color="none")
             + pn.theme(
                 figure_size=(window + 2, contig_count / 2.5),
             )
@@ -255,25 +242,20 @@ class TandemIndel(NamedTuple):
 
         all_mags: list[str] = list(self.single_in.union(self.duplicated_in))
         res: pd.Series = pd.Series(
-            index=all_mags,
-            data=[x in self.duplicated_in for x in all_mags]
+            index=all_mags, data=[x in self.duplicated_in for x in all_mags]
         )
-        for p in ['id', 'gene', 'size', 'ratio']:
+        for p in ["id", "gene", "size", "ratio"]:
             res[p] = getattr(self, p)
         return res
 
     @multimethod
     def as_table(mgs: str, variants: List[TandemIndel]) -> pd.DataFrame:
         """Information on variants from a single MGS as a DataFrame."""
-        df: pd.DataFrame = (
-            pd.DataFrame([x.as_series() for x in variants])
-            .assign(mgs=mgs)
-        )
+        df: pd.DataFrame = pd.DataFrame(
+            [x.as_series() for x in variants]
+        ).assign(mgs=mgs)
         front: List[str] = ["id", "gene", "size", "ratio"]
-        df = df[
-            front +
-            sorted([x for x in df.columns if x not in front])
-        ]
+        df = df[front + sorted([x for x in df.columns if x not in front])]
         return df
 
     @as_table.register
@@ -287,7 +269,7 @@ class TandemIndel(NamedTuple):
 
 
 def merge_contig_dicts(
-        list_dicts: List[Dict[str, Set[Contig]]]
+    list_dicts: List[Dict[str, Set[Contig]]],
 ) -> Dict[str, Set[Contig]]:
     all_keys: Set[str] = set.union(*(set(x.keys()) for x in list_dicts))
     res: Dict[str, Set[Contig]] = dict()

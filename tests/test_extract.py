@@ -13,12 +13,13 @@ from yoke.extract import MAGSequences, cli_extract_contigs
 def example_mag() -> MAG:
     """A single MAG for tests."""
     return MAG(
-        name = "Sample1__SemiBin_177.fa.gz",
-        representative = False,
-        completeness = 100,
-        contamination = 0,
-        contigs = []
+        name="Sample1__SemiBin_177.fa.gz",
+        representative=False,
+        completeness=100,
+        contamination=0,
+        contigs=[],
     )
+
 
 @fixture
 def example_mags() -> List[MAG]:
@@ -26,45 +27,39 @@ def example_mags() -> List[MAG]:
 
     return [
         MAG(
-            name = "Sample1__SemiBin_177.fa.gz",
-            representative = False,
-            completeness = 100,
-            contamination = 0,
-            contigs = []
+            name="Sample1__SemiBin_177.fa.gz",
+            representative=False,
+            completeness=100,
+            contamination=0,
+            contigs=[],
         ),
         MAG(
             name="Sample1__SemiBin_1.fa.gz",
             representative=False,
             completeness=100,
             contamination=0,
-            contigs=[]
+            contigs=[],
         ),
         MAG(
             name="Sample2__SemiBin_666.fa.gz",
             representative=True,
             completeness=100,
             contamination=100,
-            contigs=[]
-        )
+            contigs=[],
+        ),
     ]
+
 
 @fixture
 def example_assembly_dir() -> Path:
     """Assembly directory for tests."""
     return (Path("tests") / "data").resolve()
 
-def test_from_assembly_dir(
-        example_mag: MAG,
-        example_assembly_dir
-):
-    mag_seq = MAGSequences.from_assembly_dir(
-        example_mag,
-        example_assembly_dir
-    )
+
+def test_from_assembly_dir(example_mag: MAG, example_assembly_dir):
+    mag_seq = MAGSequences.from_assembly_dir(example_mag, example_assembly_dir)
     assert mag_seq.mag is example_mag
-    resolved_path = Path(
-        "tests", "data", "Assmbl_Exmpl", "metag"
-    ).absolute()
+    resolved_path = Path("tests", "data", "Assmbl_Exmpl", "metag").absolute()
     # Contig ID list should start empty
     assert isinstance(mag_seq.contig_ids, list)
     assert len(mag_seq.contig_ids) == 0
@@ -78,16 +73,20 @@ def test_group_mags(example_mags: List[MAG], example_assembly_dir: Path):
     grouped = MAGSequences.group_mags(mag_seqs)
 
     # Test expected groups identified
-    expected_mags = dict(zip(
-        [
-            Path("tests", "data", "Assmbl_Exmpl", "metag").absolute(),
-            Path("tests", "data", "Sample2", "assemblies", "metag").absolute()
-        ],
-        [
-            {"Sample1__SemiBin_177.fa.gz", "Sample1__SemiBin_1.fa.gz"},
-            {"Sample2__SemiBin_666.fa.gz"}
-        ]
-    ))
+    expected_mags = dict(
+        zip(
+            [
+                Path("tests", "data", "Assmbl_Exmpl", "metag").absolute(),
+                Path(
+                    "tests", "data", "Sample2", "assemblies", "metag"
+                ).absolute(),
+            ],
+            [
+                {"Sample1__SemiBin_177.fa.gz", "Sample1__SemiBin_1.fa.gz"},
+                {"Sample2__SemiBin_666.fa.gz"},
+            ],
+        )
+    )
     # Test groups have expected contents
     for grp, mags in expected_mags.items():
         assert any(x == grp for x in grouped.keys())
@@ -106,27 +105,20 @@ def test_add_contig_ids(example_mags, example_assembly_dir: Path):
 
 
 def test_extract_contigs(
-        example_mags: List[MAG],
-        example_assembly_dir: Path,
-        tmp_path: Path
+    example_mags: List[MAG], example_assembly_dir: Path, tmp_path: Path
 ):
     mag_seqs = [
         MAGSequences.from_assembly_dir(x, example_assembly_dir)
         for x in example_mags
     ]
     created = MAGSequences.extract_contigs(
-        mag_seqs,
-        tmp_path,
-        processes=2,
-        progress_bar=True
+        mag_seqs, tmp_path, processes=2, progress_bar=True
     )
     assert len(created) == len(example_mags)
 
 
 def test__extract_contigs_sample(
-        example_mags: List[MAG],
-        example_assembly_dir: Path,
-        tmp_path: Path
+    example_mags: List[MAG], example_assembly_dir: Path, tmp_path: Path
 ):
     """Test that we can extract contigs from a single assembly."""
     tmp_out = tmp_path / "fasta"
@@ -136,10 +128,7 @@ def test__extract_contigs_sample(
         for x in example_mags[:2]
     ]
     mags = MAGSequences.add_contig_ids(mags)
-    fastas = MAGSequences._extract_contigs_sample(
-        mags,
-        tmp_out
-    )
+    fastas = MAGSequences._extract_contigs_sample(mags, tmp_out)
 
     # Check output is as expected - these are very small FASTA files
     # for which expected version have been created

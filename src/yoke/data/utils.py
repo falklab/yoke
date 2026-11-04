@@ -20,6 +20,7 @@ class ModuleInfo(NamedTuple):
     hierarchy: pathlib.Path
     """Path to module hierarchy"""
 
+
 class BundledModules(Enum):
     GBM = ModuleInfo(
         name="GBM",
@@ -30,29 +31,26 @@ class BundledModules(Enum):
             "https://doi.org/10.1038/nmicrobiol.2016.88"
         ),
         definition=pathlib.Path(
-            files("yoke.data")
-            .joinpath(pathlib.Path("GBM", "modGBM.list"))
+            files("yoke.data").joinpath(pathlib.Path("GBM", "modGBM.list"))
         ),
         description=pathlib.Path(
-            files("yoke.data")
-            .joinpath(pathlib.Path("GBM", "modGBM.descr"))
+            files("yoke.data").joinpath(pathlib.Path("GBM", "modGBM.descr"))
         ),
         hierarchy=pathlib.Path(
-            files("yoke.data")
-            .joinpath(pathlib.Path("GBM", "modGBM_hiera.txt"))
-        )
+            files("yoke.data").joinpath(
+                pathlib.Path("GBM", "modGBM_hiera.txt")
+            )
+        ),
     )
     BSB = ModuleInfo(
         name="BSB",
         about="Human gut brain modules",
         citation="",
         definition=pathlib.Path(
-            files("yoke.data")
-            .joinpath(pathlib.Path("BSB", "modg.list"))
+            files("yoke.data").joinpath(pathlib.Path("BSB", "modg.list"))
         ),
         description=pathlib.Path(
-            files("yoke.data")
-            .joinpath(pathlib.Path("BSB", "modg.descr"))
+            files("yoke.data").joinpath(pathlib.Path("BSB", "modg.descr"))
         ),
-        hierarchy=None
+        hierarchy=None,
     )

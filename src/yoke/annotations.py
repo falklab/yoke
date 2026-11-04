@@ -4,6 +4,7 @@ Genes may be annotated against several functional schema, such as KEGG
 Orthologs, eggNOGs, GBM modules etc. This module provides methods to handle
 the connection between gene identities and these annotation schema.
 """
+
 from __future__ import annotations
 
 import csv
@@ -18,7 +19,17 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Any, Iterable, List, Set, Dict, Union, Generator, Literal
+from typing import (
+    Optional,
+    Any,
+    Iterable,
+    List,
+    Set,
+    Dict,
+    Union,
+    Generator,
+    Literal,
+)
 
 import numpy as np
 import pandas as pd
@@ -46,6 +57,7 @@ class GeneFunction:
         desc: Description of function.
         color: Color to use when representing this gene.
     """
+
     id: str
     desc: Optional[str] = None
     color: Optional[str] = None
@@ -59,8 +71,10 @@ class GeneFunction:
         )
         return a
 
+
 class FunctionSchema(Enum):
     """Functional annotation schema supported by default load methods"""
+
     KEGG = 1
 
 
@@ -72,11 +86,11 @@ class HierarchicalSchema:
     for multifurcation. Examples include GBM modules or BRITE Hierarchies."""
 
     def __init__(
-            self,
-            name: str,
-            hierarchy: pd.DataFrame,
-            gene_map: pd.DataFrame,
-            **kwargs
+        self,
+        name: str,
+        hierarchy: pd.DataFrame,
+        gene_map: pd.DataFrame,
+        **kwargs,
     ):
         """Initialise a hierarchical annotation schema.
 
@@ -92,11 +106,9 @@ class HierarchicalSchema:
         self.__hierarchy: pd.DataFrame = hierarchy
         # Drop NA
         gm = gene_map.loc[~gene_map.iloc[:, 0].isna(), :]
-        self.__gene_map: Dict = dict(zip(
-            gm.index, gm.iloc[:, 0]
-        ))
-        self.__functions: Dict[str, GeneFunction] = (
-            self.__make_gene_functions(hierarchy, gene_map)
+        self.__gene_map: Dict = dict(zip(gm.index, gm.iloc[:, 0]))
+        self.__functions: Dict[str, GeneFunction] = self.__make_gene_functions(
+            hierarchy, gene_map
         )
 
     @property
@@ -118,15 +130,12 @@ class HierarchicalSchema:
     @property
     def gene_matrix(self) -> pd.DataFrame:
         mat: pd.DataFrame = pd.concat(
-            [f.sparse_series for f in self.functions.values()],
-            axis=1
+            [f.sparse_series for f in self.functions.values()], axis=1
         )
         return mat
 
     def __make_hierarchy(
-            self,
-            hierarchy: Optional[pd.DataFrame],
-            annotation: pd.DataFrame
+        self, hierarchy: Optional[pd.DataFrame], annotation: pd.DataFrame
     ) -> pd.DataFrame:
         """Properly format a hierarchy table, or make a dummy if is no table."""
         if hierarchy is not None:
@@ -142,12 +151,8 @@ class HierarchicalSchema:
         function_id = self.gene_map[gene_id]
         return self.functions[function_id]
 
-
     @multimethod
-    def function_counts(
-            self,
-            mag: MAG
-    ):
+    def function_counts(self, mag: MAG):
         """Count number of genes in this MAG with each function in this
         schema.
 
@@ -156,22 +161,16 @@ class HierarchicalSchema:
         """
         f_counts: Counter = Counter(
             (
-                gf.id for gf in
-                (self.get_gene_function(gene) for gene in mag.genes)
+                gf.id
+                for gf in (self.get_gene_function(gene) for gene in mag.genes)
                 if gf is not None
             )
         )
-        counts: pd.Series = pd.Series(
-            f_counts,
-            name=mag.name
-        ).astype("int")
+        counts: pd.Series = pd.Series(f_counts, name=mag.name).astype("int")
         return counts
 
     @multimethod
-    def function_counts(
-            self,
-            mgs: MGS
-    ):
+    def function_counts(self, mgs: MGS):
         """Count number of genes in each MAG in this MGS with each function
         in this schema.
 
@@ -182,39 +181,32 @@ class HierarchicalSchema:
         # Make a multiindex with MAG and MGS - MGS is redundant, but it
         # makes columnwise concating easier
         cols: pd.MultiIndex = pd.MultiIndex.from_tuples(
-            zip(
-                [mag.name for mag in mgs.mags],
-                itertools.cycle([mgs.name])
-            ), names=["mag", "mgs"]
+            zip([mag.name for mag in mgs.mags], itertools.cycle([mgs.name])),
+            names=["mag", "mgs"],
         )
         df = pd.concat(
-            [self.function_counts(mag) for mag in
-             tqdm.tqdm(mgs.mags, desc=mgs.name)],
-            axis=1
+            [
+                self.function_counts(mag)
+                for mag in tqdm.tqdm(mgs.mags, desc=mgs.name)
+            ],
+            axis=1,
         )
         df.columns = cols
         return df
 
     @multimethod
-    def function_counts(
-            self,
-            mgs: List[MGS]
-    ) -> pd.DataFrame:
+    def function_counts(self, mgs: List[MGS]) -> pd.DataFrame:
         """Count number of genes in each MAG in these MGS with each functional
         in this schema.
 
         Args:
             mgs: Collection of MGS to produce counts for.
         """
-        return pd.concat(
-            [self.function_counts(m) for m in mgs],
-            axis=1
-        )
+        return pd.concat([self.function_counts(m) for m in mgs], axis=1)
 
     @staticmethod
     def __make_gene_functions(
-            hierarchy: pd.DataFrame,
-            gene_map: pd.DataFrame
+        hierarchy: pd.DataFrame, gene_map: pd.DataFrame
     ) -> Dict[str, GeneFunction]:
         """Create GeneFunction objects for this hierarchy."""
 
@@ -225,19 +217,20 @@ class HierarchicalSchema:
             ret_dict[function_id] = GeneFunction(
                 id=function_id,
                 desc=(
-                    None if function_id not in hierarchy.index else
-                    hierarchy.loc[function_id].iloc[-1]
+                    None
+                    if function_id not in hierarchy.index
+                    else hierarchy.loc[function_id].iloc[-1]
                 ),
-                gene_ids=set(ann_group.index)
+                gene_ids=set(ann_group.index),
             )
         return ret_dict
 
     @staticmethod
     def from_file(
-            name: str,
-            hierarchy: Union[str, pathlib.Path],
-            annotation: Union[str, pathlib.Path],
-            delim: str = "\t"
+        name: str,
+        hierarchy: Union[str, pathlib.Path],
+        annotation: Union[str, pathlib.Path],
+        delim: str = "\t",
     ) -> HierarchicalSchema:
         """Read schema from files.
 
@@ -246,22 +239,11 @@ class HierarchicalSchema:
         Annotation files should be only two columns, with no headers.
         """
 
-        h_df: pd.DataFrame = pd.read_csv(
-            hierarchy,
-            sep=delim,
-            index_col=0
-        )
-        a_df: pd.DataFrame = pd.read_csv(
-            annotation,
-            sep=delim,
-            index_col=0
-        )
+        h_df: pd.DataFrame = pd.read_csv(hierarchy, sep=delim, index_col=0)
+        a_df: pd.DataFrame = pd.read_csv(annotation, sep=delim, index_col=0)
 
-        return HierarchicalSchema(
-            name=name,
-            hierarchy=h_df,
-            gene_map=a_df
-        )
+        return HierarchicalSchema(name=name, hierarchy=h_df, gene_map=a_df)
+
 
 class RTKModules:
     """Functional modules for which module presence can be estimated using RTK.
@@ -276,25 +258,27 @@ class RTKModules:
     The package also bundles several module definitions, which can be
     loaded from the `RTKModules.bundled()` factory method.
     """
+
     RTK_DEFAULTS = dict(
-        redundancy = "5",
-        writeExtraModEstimates = True,
-        moduleCompl = "0.5",
-        enzymeCompl = "0.5",
-        collapseDblModules = True
+        redundancy="5",
+        writeExtraModEstimates=True,
+        moduleCompl="0.5",
+        enzymeCompl="0.5",
+        collapseDblModules=True,
     )
 
     def __init__(
-            self,
-            definition: Union[str, pathlib.Path],
-            description: Union[str, pathlib.Path],
-            hierarchy: Optional[Union[str, pathlib.Path]],
-            name: str
+        self,
+        definition: Union[str, pathlib.Path],
+        description: Union[str, pathlib.Path],
+        hierarchy: Optional[Union[str, pathlib.Path]],
+        name: str,
     ) -> None:
         self.__definition: pathlib.Path = pathlib.Path(definition)
         self.__description: pathlib.Path = pathlib.Path(description)
         self.__hierarchy: Optional[pathlib.Path] = (
-            pathlib.Path(hierarchy) if hierarchy is not None else None)
+            pathlib.Path(hierarchy) if hierarchy is not None else None
+        )
         self.__name: str = name
 
     @property
@@ -331,7 +315,7 @@ class RTKModules:
             definition=mod.definition,
             description=mod.description,
             hierarchy=mod.hierarchy,
-            name=mod.name
+            name=mod.name,
         )
 
     @staticmethod
@@ -362,21 +346,22 @@ class RTKModules:
         """
 
         logger.debug("Load RTK results for %s", prefix)
-        files: List[pathlib.Path] = list(prefix.parent.glob(f"{prefix.name}.*"))
+        files: List[pathlib.Path] = list(
+            prefix.parent.glob(f"{prefix.name}.*")
+        )
         logger.debug("Found %s files: %s", len(files), files)
         res = {
-            str(l).replace(str(prefix) + ".", ""): pd.read_csv(
-                l, sep="\t")
+            str(l).replace(str(prefix) + ".", ""): pd.read_csv(l, sep="\t")
             for l in files
         }
         return res
 
     def score_table(
-            self,
-            pth_mgs_tbl: pathlib.Path,
-            output_prefix: Optional[pathlib.Path] = None,
-            load_result: bool = False,
-            **kwargs
+        self,
+        pth_mgs_tbl: pathlib.Path,
+        output_prefix: Optional[pathlib.Path] = None,
+        load_result: bool = False,
+        **kwargs,
     ) -> Optional[Dict[str, pd.DataFrame]]:
         """Score the presence of modules for each item in a table.
 
@@ -418,19 +403,17 @@ class RTKModules:
         rtk_cmd = rtk_cmd + extra_args
 
         expect_output: pathlib.Path = output_prefix.with_name(
-            f"{output_prefix.name}.mat")
+            f"{output_prefix.name}.mat"
+        )
 
         logger.debug("Run RTK command: %s", rtk_cmd)
         subp: subprocess.CompletedProcess = subprocess.run(
-            rtk_cmd,
-            shell=True,
-            capture_output=True
+            rtk_cmd, shell=True, capture_output=True
         )
 
         # Determine success
         if subp.returncode != 0 or not expect_output.exists():
-            logger.error(
-                "RTK module scoring for %s failed", pth_mgs_tbl)
+            logger.error("RTK module scoring for %s failed", pth_mgs_tbl)
             logger.error("Stderr")
             logger.error(subp.stderr.decode("utf-8"))
             logger.error("Stdout")
@@ -442,10 +425,7 @@ class RTKModules:
         return None
 
 
-def _combine_mgs(
-        mag_counts: pathlib.Path,
-        mgs: List[str]
-) -> pd.DataFrame:
+def _combine_mgs(mag_counts: pathlib.Path, mgs: List[str]) -> pd.DataFrame:
     """Combine function counts of multiple MGS into one table. The returned
     table will have one column for each MAG in any of the listed MGS. This
     can be used to get a table of all MGS with a certain phenotype, or from
@@ -453,7 +433,9 @@ def _combine_mgs(
     """
 
     # Check whether files appear to be gzipped
-    suffix: str = "tsv" if (mag_counts / f"{mgs[0]}.tsv").exists() else "tsv.gz"
+    suffix: str = (
+        "tsv" if (mag_counts / f"{mgs[0]}.tsv").exists() else "tsv.gz"
+    )
     mgs_dfs: List[pd.DataFrame] = [
         pd.read_csv(mag_counts / f"{x}.{suffix}", sep="\t", index_col=0)
         for x in mgs
@@ -461,12 +443,14 @@ def _combine_mgs(
     comb_df: pd.DataFrame = pd.concat(mgs_dfs, axis=1)
     return comb_df
 
+
 def _csv_field_adjust():
     """Increase max field size for csv to help parse larger entries in
     MAGvsGC"""
     logger.debug("Increasing max field size to %s", str(sys.maxsize))
-    logger.debug("This has been needed in the past to parse large entries in "
-                 "MAGvsGC")
+    logger.debug(
+        "This has been needed in the past to parse large entries in MAGvsGC"
+    )
     csv.field_size_limit(sys.maxsize)
 
 
@@ -488,12 +472,13 @@ def _check_unique(index: pd.Index, what: str) -> None:
 
 
 def function_enrichment(
-        function_counts: pd.DataFrame,
-        metadata: pd.DataFrame,
-        tests: Iterable[
-            Literal["fisher", "barnard", "boschloo"]
-        ] = ("fisher", "barnard"),
-        adj_method: str = "fdr_bh"
+    function_counts: pd.DataFrame,
+    metadata: pd.DataFrame,
+    tests: Iterable[Literal["fisher", "barnard", "boschloo"]] = (
+        "fisher",
+        "barnard",
+    ),
+    adj_method: str = "fdr_bh",
 ) -> pd.DataFrame:
     """Test a table of functions for association to categorical metadata with
     two classes.
@@ -540,7 +525,8 @@ def function_enrichment(
     _check_unique(function_counts.columns, "MGS/MAGs in function_counts")
     _check_unique(metadata.index, "MGS/MAGs in metadata")
     non_numeric = [
-        str(c) for c, d in function_counts.dtypes.items()
+        str(c)
+        for c, d in function_counts.dtypes.items()
         if not pd.api.types.is_numeric_dtype(d)
     ]
     if non_numeric:
@@ -572,7 +558,8 @@ def function_enrichment(
         if len(shared) == 0:
             logger.warning(
                 "Metadata column %s has no non-NA values for MGS/MAGs in "
-                "function_counts, skipping", col
+                "function_counts, skipping",
+                col,
             )
             continue
         md_col = md_col.loc[shared]
@@ -588,12 +575,12 @@ def function_enrichment(
             logger.warning(
                 "Metadata column %s has %s levels (%s) for MGS/MAGs in "
                 "function_counts after removing NAs, needs 2, skipping",
-                col, len(levels), ", ".join(str(x) for x in levels[:5])
+                col,
+                len(levels),
+                ", ".join(str(x) for x in levels[:5]),
             )
             continue
-        logger.info(
-            "Testing %s with %s MGS/MAGs", col, len(shared)
-        )
+        logger.info("Testing %s with %s MGS/MAGs", col, len(shared))
 
         # Each 2x2 table is built from counts of presence within each
         # metadata level, so all levels are always represented
@@ -613,19 +600,14 @@ def function_enrichment(
             col_res[f"{test}_stat"] = [r.statistic for r in stats]
             col_res[f"{test}_p"] = [r.pvalue for r in stats]
             col_res[f"{test}_p_adj"] = multitest.multipletests(
-                col_res[f"{test}_p"].fillna(1.0),
-                method=adj_method
+                col_res[f"{test}_p"].fillna(1.0), method=adj_method
             )[1]
         col_res.index.name = "function"
         res.append(col_res.assign(metadata=col))
 
     if len(res) == 0:
         return pd.DataFrame()
-    return (
-        pd.concat(res)
-        .reset_index()
-        .set_index(["metadata", "function"])
-    )
+    return pd.concat(res).reset_index().set_index(["metadata", "function"])
 
 
 def _read_id_table(pth: pathlib.Path) -> pd.DataFrame:
@@ -644,12 +626,12 @@ def _read_id_table(pth: pathlib.Path) -> pd.DataFrame:
 
 
 def cli_function_enrichment(
-        counts: List[pathlib.Path],
-        metadata: pathlib.Path,
-        output: pathlib.Path,
-        tests: Iterable[str] = ("fisher", "barnard"),
-        adj_method: str = "fdr_bh",
-        columns: Optional[List[str]] = None
+    counts: List[pathlib.Path],
+    metadata: pathlib.Path,
+    output: pathlib.Path,
+    tests: Iterable[str] = ("fisher", "barnard"),
+    adj_method: str = "fdr_bh",
+    columns: Optional[List[str]] = None,
 ) -> None:
     """Test functions for association with two-level metadata categories.
 
@@ -685,7 +667,7 @@ def cli_function_enrichment(
         tables.append(tbl)
     _check_unique(
         pd.Index([c for t in tables for c in t.columns]),
-        "MGS/MAGs across function count tables"
+        "MGS/MAGs across function count tables",
     )
     function_counts: pd.DataFrame = pd.concat(tables, axis=1).fillna(0)
 
@@ -694,16 +676,11 @@ def cli_function_enrichment(
     if columns is not None:
         missing: Set[str] = set(columns) - set(md.columns)
         if missing:
-            raise ValueError(
-                f"Metadata columns not found: {sorted(missing)}"
-            )
+            raise ValueError(f"Metadata columns not found: {sorted(missing)}")
         md = md[columns]
 
     res: pd.DataFrame = function_enrichment(
-        function_counts,
-        md,
-        tests=tests,
-        adj_method=adj_method
+        function_counts, md, tests=tests, adj_method=adj_method
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     logger.info("Writing results to %s", output)
@@ -711,14 +688,14 @@ def cli_function_enrichment(
 
 
 def cli_function_count(
-        magvsgc: pathlib.Path,
-        annotations: pathlib.Path,
-        descriptions: Optional[pathlib.Path],
-        output: pathlib.Path,
-        name: str,
-        completeness: float = 0,
-        contamination: float = 100,
-        compress: bool = True
+    magvsgc: pathlib.Path,
+    annotations: pathlib.Path,
+    descriptions: Optional[pathlib.Path],
+    output: pathlib.Path,
+    name: str,
+    completeness: float = 0,
+    contamination: float = 100,
+    compress: bool = True,
 ) -> None:
     """Count how many genes have each functional annotation in all MAGS."""
 
@@ -741,23 +718,15 @@ def cli_function_count(
 
     logger.info("Reading annotation descriptions")
     description: pd.DataFrame = pd.read_csv(
-        descriptions,
-        sep="\t",
-        header=None,
-        index_col=0
+        descriptions, sep="\t", header=None, index_col=0
     )
     logger.info("Reading gene annotations")
     annotation: pd.DataFrame = pd.read_csv(
-        annotations,
-        sep="\t",
-        header=None,
-        index_col=0
+        annotations, sep="\t", header=None, index_col=0
     )
     logger.info("Making annotation object")
     s: HierarchicalSchema = HierarchicalSchema(
-        name=name,
-        hierarchy=description,
-        gene_map=annotation
+        name=name, hierarchy=description, gene_map=annotation
     )
 
     logger.info("Creating function counts for each MGS")
@@ -765,7 +734,7 @@ def cli_function_count(
         magvsgc,
         min_completeness=completeness,
         max_contamination=contamination,
-        compressed=True
+        compressed=True,
     )
 
     # Collect means to make a summary DF also
@@ -773,14 +742,14 @@ def cli_function_count(
     comp_args: Dict = dict(compression="gzip") if compress else dict()
     for mgs in mgs_gen:
         pth_mgs: pathlib.Path = (
-                pth_out / f"{mgs.name}.tsv.gz"
-                if compress else
-                pth_out / f"{mgs.name}.tsv"
+            pth_out / f"{mgs.name}.tsv.gz"
+            if compress
+            else pth_out / f"{mgs.name}.tsv"
         )
         pth_mgs_pa: pathlib.Path = (
-                pth_out / f"presence.{mgs.name}.tsv.gz"
-                if compress else
-                pth_out / f"presence.{mgs.name}.tsv"
+            pth_out / f"presence.{mgs.name}.tsv.gz"
+            if compress
+            else pth_out / f"presence.{mgs.name}.tsv"
         )
         tbl: pd.DataFrame = s.function_counts(mgs).fillna(0.0)
         tbl.columns = tbl.columns.droplevel("mgs")
@@ -798,14 +767,22 @@ def cli_function_count(
     logger.info("MGS means saved to %s", pth_all)
     df_means.to_csv(pth_all, sep="\t")
 
+
 def cli_function_hoist(
-        mag_counts: pathlib.Path,
-        magvsgc_file: pathlib.Path,
-        output: pathlib.Path,
-        ranks: List[str] = ['Domain', 'Phylum', 'Class', 'Order', 'Family',
-                            'Genus', 'Species'],
-        compressed: bool = True,
-        cols: dict[str, str] = None
+    mag_counts: pathlib.Path,
+    magvsgc_file: pathlib.Path,
+    output: pathlib.Path,
+    ranks: List[str] = [
+        "Domain",
+        "Phylum",
+        "Class",
+        "Order",
+        "Family",
+        "Genus",
+        "Species",
+    ],
+    compressed: bool = True,
+    cols: dict[str, str] = None,
 ) -> None:
     """Summarise previously produced function counts per MAG at different
     taxonomic levels."""
@@ -826,15 +803,15 @@ def cli_function_hoist(
         cols = create.DEF_MAGCVSGC_COLS
 
     logger.info("Reading MAGvsGC file %s", magvsgc_file)
-    openfn = (lambda x: gzip.open(x, 'rt')) if compressed else open
+    openfn = (lambda x: gzip.open(x, "rt")) if compressed else open
     with openfn(magvsgc_file) as magvsgc:
         reader = csv.DictReader(magvsgc, delimiter="\t")
         mgs_tax: Dict[str, pd.Series] = dict()
         for row in reader:
-            mgs_id: str = row[cols['mgs']]
+            mgs_id: str = row[cols["mgs"]]
             if (mgs_id not in mgs_tax) and (len(mgs_id) > 0):
                 tdict = {r: row[r] for r in ranks}
-                tdict['mgs'] = mgs_id
+                tdict["mgs"] = mgs_id
                 mgs_tax[mgs_id] = tdict
     tax_df: pd.DataFrame = pd.DataFrame(
         [pd.Series(x) for x in mgs_tax.values()]
@@ -851,8 +828,7 @@ def cli_function_hoist(
             pbar.set_description(f"{rank}: {val}")
             pth_full = pth_rank / f"{val}.tsv"
             df = _combine_mgs(
-                mag_counts,
-                tax_df.loc[tax_df[rank] == val, 'mgs'].tolist()
+                mag_counts, tax_df.loc[tax_df[rank] == val, "mgs"].tolist()
             )
             logger.debug("Write to %s", pth_full)
             df.to_csv(pth_full, sep="\t")
@@ -864,14 +840,15 @@ def cli_function_hoist(
         df_mean = pd.DataFrame(means)
         df_mean.T.to_csv(output / f"{rank}.tsv", sep="\t")
 
+
 def cli_function_modules(
-        tables: Iterable[pathlib.Path],
-        name: str,
-        output_dir: pathlib.Path,
-        modules: Optional[str] = None,
-        definition: Optional[pathlib.Path] = None,
-        description: Optional[pathlib.Path] = None,
-        hierarchy: Optional[pathlib.Path] = None
+    tables: Iterable[pathlib.Path],
+    name: str,
+    output_dir: pathlib.Path,
+    modules: Optional[str] = None,
+    definition: Optional[pathlib.Path] = None,
+    description: Optional[pathlib.Path] = None,
+    hierarchy: Optional[pathlib.Path] = None,
 ) -> None:
     """Score module presence based on a table of functional annotations.
 
@@ -921,7 +898,7 @@ def cli_function_modules(
             definition=definition,
             description=description,
             hierarchy=hierarchy,
-            name=name
+            name=name,
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -932,10 +909,7 @@ def cli_function_modules(
             tbl_name: str = ".".join(tbl_dc.name.split(".")[:-1])
             prefix_out: pathlib.Path = output_dir / f"{tbl_name}.{name}"
             logger.debug("Output prefix: %s", prefix_out)
-            mods.score_table(
-                pth_mgs_tbl=tbl_dc,
-                output_prefix=prefix_out
-            )
+            mods.score_table(pth_mgs_tbl=tbl_dc, output_prefix=prefix_out)
 
 
 # Lazy testing - for some reason multimethod dispatch won't work properly
@@ -987,9 +961,9 @@ if __name__ == "__main__":
         definition="../../tests/data/module_defs/GBM/modGBM.list",
         description="../../tests/data/module_defs/GBM/modGBM.descr",
         hierarchy="../../tests/data/module_defs/GBM/modGBM_hiera.txt",
-        name="GBM"
+        name="GBM",
     )
     gbm_mods.score_table(
         pth_mgs_tbl=pathlib.Path("../../tests/output/KEGG/MGS.0.tsv"),
-        output_prefix=pathlib.Path("../../tests/output/GBM_testo")
+        output_prefix=pathlib.Path("../../tests/output/GBM_testo"),
     )

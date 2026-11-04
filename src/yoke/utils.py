@@ -4,6 +4,7 @@ import subprocess
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+
 class GzipManager:
     """Context manager for creating an unzipped file if needed."""
 
@@ -20,7 +21,8 @@ class GzipManager:
             res = subprocess.run(cmd, shell=True, check=True)
             if res.returncode != 0:
                 raise RuntimeError(
-                    f"gunzip failed with return code {res.returncode}")
+                    f"gunzip failed with return code {res.returncode}"
+                )
             return pathlib.Path(f"{self.pth_unzipped}")
         else:
             logger.debug(f"File {self.pth} is already unzipped")

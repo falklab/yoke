@@ -36,20 +36,17 @@ DEF_MAGCVSGC_COLS = dict(
     representative="Representative4MGS",
     mag="MAG",
     mgs="MGS",
-    contigs="other_Genes"
+    contigs="other_Genes",
 )
 """Column names in the MATAFILER MAGvsGC file."""
 # Made this as a dictionary so if output format changes can just change
 # column headers here
 
+
 class MGS:
     """A metagenomic species."""
 
-    def __init__(
-        self,
-        name: str,
-        mags: List[MAG]
-    ) -> None:
+    def __init__(self, name: str, mags: List[MAG]) -> None:
         """A metagenomic species.
 
         Args:
@@ -60,9 +57,7 @@ class MGS:
         self.mags: List[MAG] = mags
 
     @staticmethod
-    def from_dataframe_group(
-        group: pd.DataFrame
-    ) -> MGS:
+    def from_dataframe_group(group: pd.DataFrame) -> MGS:
         """Produce single MGS object from a DataFrame, typically MAGvsGC from
         MG-TK.
 
@@ -78,11 +73,11 @@ class MGS:
         """
         # Make each MAG from a single row of the DataFrame
         mags: List[MAG] = list(group.apply(MAG.from_series, axis=1))
-        name: str = group.iloc[0][DEF_MAGCVSGC_COLS['mgs']]
+        name: str = group.iloc[0][DEF_MAGCVSGC_COLS["mgs"]]
         return MGS(name=name, mags=mags)
 
     def __repr__(self) -> str:
-        return f'MGS[{self.name}, {len(self.mags)} MAGs]'
+        return f"MGS[{self.name}, {len(self.mags)} MAGs]"
 
     @property
     def genes(self) -> Set[int]:
@@ -101,13 +96,13 @@ class MGS:
         return pd.concat([mag.gene_series for mag in self.mags])
 
     @property
-    def edges(self) -> List[
-        Tuple[int, int, Dict[str, int], Dict[str, Set[Contig]]]
-    ]:
+    def edges(
+        self,
+    ) -> List[Tuple[int, int, Dict[str, int], Dict[str, Set[Contig]]]]:
         """Edges between genes in this MGS.
-        
+
         The return tuples are a, b, {MAG: count}, {MAG: contigs}
-        where a, b are incident vertices of the edge, and MAG: count is a 
+        where a, b are incident vertices of the edge, and MAG: count is a
         dictionary with the number of times the edge is observed in each MAG.
 
         Returns:
@@ -147,7 +142,7 @@ class MAG:
         representative: bool,
         completeness: float,
         contamination: float,
-        contigs: List[Contig]
+        contigs: List[Contig],
     ) -> None:
         """A MAG based on gene catalogue content.
 
@@ -165,10 +160,7 @@ class MAG:
         self.contigs: List[Contig] = contigs
 
     @staticmethod
-    def from_series(
-            mag_series: pd.Series,
-            cols: Dict[str, str] = None
-    ) -> MAG:
+    def from_series(mag_series: pd.Series, cols: Dict[str, str] = None) -> MAG:
         """_summary_
 
         Args:
@@ -180,31 +172,29 @@ class MAG:
         """
         if cols is None:
             cols = DEF_MAGCVSGC_COLS
-        name: str = mag_series[cols['mag']]
-        representative: bool = (
-                len(mag_series[cols['representative']]) > 0)
-        completeness: float = float(
-            mag_series[cols['completeness']])
-        contamination: float = float(
-            mag_series[cols['contamination']])
+        name: str = mag_series[cols["mag"]]
+        representative: bool = len(mag_series[cols["representative"]]) > 0
+        completeness: float = float(mag_series[cols["completeness"]])
+        contamination: float = float(mag_series[cols["contamination"]])
         contigs: List[Contig] = Contig.from_str(
-            mag_series[cols['contigs']],
-            name_prefix=f'{name}_')
+            mag_series[cols["contigs"]], name_prefix=f"{name}_"
+        )
 
         return MAG(
             name=name,
             representative=representative,
             completeness=completeness,
             contamination=contamination,
-            contigs=contigs
+            contigs=contigs,
         )
 
     @property
     def genes(self) -> Set[int]:
         """Set of all genes in this MAG."""
-        return set(itertools.chain.from_iterable(
-            x.genes for x in self.contigs
-        ))
+        return set(
+            itertools.chain.from_iterable(x.genes for x in self.contigs)
+        )
+
     @property
     def gene_series(self) -> pd.Series:
         """Series with count of observed genes."""
@@ -231,17 +221,13 @@ class MAG:
         return edges
 
     def __repr__(self) -> str:
-        return f'MAG[{self.name}, {len(self.contigs)} contigs]'
+        return f"MAG[{self.name}, {len(self.contigs)} contigs]"
 
 
 class Contig:
     """One contig, which is an ordered list of genes."""
 
-    def __init__(
-        self,
-        genes: List[int],
-        name: Optional[str] = None
-    ) -> None:
+    def __init__(self, genes: List[int], name: Optional[str] = None) -> None:
         """Representation of a single contig.
 
         Args:
@@ -257,7 +243,7 @@ class Contig:
         contig_str: str,
         gene_delim: str = ",",
         contig_delim: str = ",,",
-        name_prefix: str = ""
+        name_prefix: str = "",
     ) -> List[Contig]:
         """Create Contig from string representation of sequence of genes.
 
@@ -269,7 +255,7 @@ class Contig:
                 to ",".
             contig_delim (str, optional): String which indicates the end of a
                 contig. Defaults to ",,".
-            name_prefix (str, optional): String to place before contig number. 
+            name_prefix (str, optional): String to place before contig number.
                 Defaults to "".
 
         Returns:
@@ -277,13 +263,13 @@ class Contig:
         """
         # Split to contigs
         contigs: List[Contig] = [
-            Contig(ctg.split(gene_delim), name=f'{name_prefix}{i}')
+            Contig(ctg.split(gene_delim), name=f"{name_prefix}{i}")
             for i, ctg in enumerate(contig_str.split(contig_delim))
         ]
         return contigs
 
     def __repr__(self) -> str:
-        return f'Contig[{self.name}, {len(self.genes)} genes]'
+        return f"Contig[{self.name}, {len(self.genes)} genes]"
 
     @staticmethod
     def reverse(contig: Contig) -> Contig:
@@ -296,21 +282,20 @@ class Contig:
             name will have "_r" appended to indicate this has been reversed.
         """
         rev_genes = [int(x) for x in contig.genes[::-1]]
-        return Contig(
-            genes=rev_genes, name=f"{contig.name}_r"
-        )
+        return Contig(genes=rev_genes, name=f"{contig.name}_r")
 
     @property
     def edges(self) -> List[Tuple[int, int]]:
         """All the edges supported by this contig (consecutive genes).
-        
+
 
         Returns:
             List[Tuple[int, int]]: List of adjacent genes on this contig.
         """
 
         return [
-            (self.genes[i], self.genes[i+1]) for i in range(len(self.genes)-1)
+            (self.genes[i], self.genes[i + 1])
+            for i in range(len(self.genes) - 1)
         ]
 
     def get_indices(self, genes: List[int]) -> np.ndarray:
@@ -332,44 +317,34 @@ class Contig:
         # if running slow - but realistically I don't expect this function
         # to be the workhorse of the package
         window: np.ndarray = np.lib.stride_tricks.sliding_window_view(
-            contig_genes,
-            pattern.shape[0]
+            contig_genes, pattern.shape[0]
         )
 
         forward_starts: np.ndarray = (
-            np.where(np.all(window == pattern, axis=1)))[0]
-        forward_shifts = (
-            np.tile(
-                np.arange(pattern.shape[0]),
-                (forward_starts.shape[0], 1)
-            )
+            np.where(np.all(window == pattern, axis=1))
+        )[0]
+        forward_shifts = np.tile(
+            np.arange(pattern.shape[0]), (forward_starts.shape[0], 1)
         )
-        forward_indices = (
-                forward_shifts + forward_starts.reshape((-1, 1))
-        )
+        forward_indices = forward_shifts + forward_starts.reshape((-1, 1))
 
         # Palindromic patterns do not need reverse matches calculating
         if not np.array_equal(genes, genes[::-1]):
             reverse_starts: np.ndarray = np.where(
-                np.all(window == pattern[::-1], axis=1))[0]
-            reverse_shifts = (
-                np.tile(
-                    np.arange(pattern.shape[0] - 1, -1, -1),
-                    (reverse_starts.shape[0], 1)
-                )
+                np.all(window == pattern[::-1], axis=1)
+            )[0]
+            reverse_shifts = np.tile(
+                np.arange(pattern.shape[0] - 1, -1, -1),
+                (reverse_starts.shape[0], 1),
             )
-            reverse_indices = (
-                    reverse_shifts + reverse_starts.reshape((-1, 1))
-            )
+            reverse_indices = reverse_shifts + reverse_starts.reshape((-1, 1))
             return np.concatenate([forward_indices, reverse_indices])
         else:
             return forward_indices
 
     @staticmethod
     def get_contexts(
-            contigs: List[Contig],
-            genes: List[int],
-            flanking: int
+        contigs: List[Contig], genes: List[int], flanking: int
     ) -> pd.DataFrame:
         """Get a sequence of genes plus some up or downstream on multiple
         contigs.
@@ -379,19 +354,15 @@ class Contig:
         """
         ctxts: pd.DataFrame = pd.concat(
             [
-                pd.DataFrame(
-                    c.get_context(genes, flanking)
-                ).assign(contig=c.name)
+                pd.DataFrame(c.get_context(genes, flanking)).assign(
+                    contig=c.name
+                )
                 for c in contigs
             ]
         )
         return ctxts
 
-    def get_context(
-            self,
-            genes: List[int],
-            flanking: int
-    ) -> np.ndarray:
+    def get_context(self, genes: List[int], flanking: int) -> np.ndarray:
         """Get a sequence of genes plus some up or downstream.
 
         Finds each occurrence of a given pattern of genes, and returns
@@ -428,7 +399,7 @@ def read_mag_vs_gc(
     min_completeness: float = 0,
     max_contamination: float = 100,
     cols: Dict[str, str] = None,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, MGS]:
     """Create MGS from file connecting MAGs to gene catalogue.
 
@@ -447,25 +418,21 @@ def read_mag_vs_gc(
     if cols is None:
         cols = DEF_MAGCVSGC_COLS
 
-    df: pd.DataFrame = pd.read_csv(
-        file,
-        sep="\t",
-        low_memory=True
-    )
+    df: pd.DataFrame = pd.read_csv(file, sep="\t", low_memory=True)
 
     # Filter MAGs
-    df = (df[(df[cols['completeness']] > min_completeness) &
-             (df[cols['contamination']] < max_contamination)]
-            .astype({cols['representative']: "str"})
-        )
+    df = df[
+        (df[cols["completeness"]] > min_completeness)
+        & (df[cols["contamination"]] < max_contamination)
+    ].astype({cols["representative"]: "str"})
 
     # Group by MGS
     mgs: List[MGS] = list(
-        df.groupby(by=cols['mgs']).
-        apply(MGS.from_dataframe_group)
+        df.groupby(by=cols["mgs"]).apply(MGS.from_dataframe_group)
     )
 
     return dict(zip((x.name for x in mgs), mgs))
+
 
 def generate_mgs_from_magvsgc(
     file: Union[str, pathlib.Path],
@@ -473,7 +440,7 @@ def generate_mgs_from_magvsgc(
     min_completeness: float = 0,
     max_contamination: float = 100,
     cols: Dict[str, str] = None,
-    **kwargs
+    **kwargs,
 ) -> MGS:
     """Yield MGS objects based on MAGvsGC content.
 
@@ -484,33 +451,27 @@ def generate_mgs_from_magvsgc(
     if cols is None:
         cols = DEF_MAGCVSGC_COLS
 
-    openfn = (lambda x: gzip.open(x, 'rt')) if compressed else open
+    openfn = (lambda x: gzip.open(x, "rt")) if compressed else open
     with openfn(file) as magvsgc:
         reader = csv.DictReader(magvsgc, delimiter="\t", **kwargs)
         mags: List[Dict] = []
         prev_mgs: Optional[str] = None
         for row in reader:
-            mgs: str = row[cols['mgs']]
+            mgs: str = row[cols["mgs"]]
             if (prev_mgs != mgs) and (len(mags) > 0):
                 # Create and yield an MGS
-                df: pd.DataFrame = (
-                    pd.DataFrame(mags)
-                    .astype(
-                        {
-                            cols['representative']: "str",
-                            cols['completeness']: "float",
-                            cols['contamination']: "float"
-                        }
-                    )
+                df: pd.DataFrame = pd.DataFrame(mags).astype(
+                    {
+                        cols["representative"]: "str",
+                        cols["completeness"]: "float",
+                        cols["contamination"]: "float",
+                    }
                 )
                 # Filter MAGs
-                df = (
-                    df[
-                        (df[cols['completeness']] > min_completeness) &
-                        (df[cols['contamination']] < max_contamination)
-                    ]
-                    .astype({cols['representative']: "str"})
-                )
+                df = df[
+                    (df[cols["completeness"]] > min_completeness)
+                    & (df[cols["contamination"]] < max_contamination)
+                ].astype({cols["representative"]: "str"})
                 yield MGS.from_dataframe_group(df)
                 mags = []
 
@@ -519,34 +480,24 @@ def generate_mgs_from_magvsgc(
                 continue
 
             # Select only requested columns
-            mags.append(
-                {
-                    v: row[v] for k, v in DEF_MAGCVSGC_COLS.items()
-                }
-            )
+            mags.append({v: row[v] for k, v in DEF_MAGCVSGC_COLS.items()})
 
             prev_mgs = mgs
 
         # Yield final MGS
         if len(mags) > 0:
             # TODO: Tidy and remove this duplication
-            df: pd.DataFrame = (
-                pd.DataFrame(mags)
-                .astype(
-                    {
-                        cols['representative']: "str",
-                        cols['completeness']: "float",
-                        cols['contamination']: "float"
-                    }
-                )
+            df: pd.DataFrame = pd.DataFrame(mags).astype(
+                {
+                    cols["representative"]: "str",
+                    cols["completeness"]: "float",
+                    cols["contamination"]: "float",
+                }
             )
             # Filter MAGs
-            df = (
-                df[
-                    (df[cols['completeness']] > min_completeness) &
-                    (df[cols['contamination']] < max_contamination)
-                    ]
-                .astype({cols['representative']: "str"})
-            )
+            df = df[
+                (df[cols["completeness"]] > min_completeness)
+                & (df[cols["contamination"]] < max_contamination)
+            ].astype({cols["representative"]: "str"})
             if df.shape[0] > 0:
                 yield MGS.from_dataframe_group(df)

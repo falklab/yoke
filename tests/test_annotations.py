@@ -5,7 +5,6 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 import pytest
-from _pytest.fixtures import fixture
 from scipy.stats import fisher_exact
 
 from yoke import create
@@ -21,62 +20,39 @@ from yoke.create import MGS
 AnnPaths = namedtuple("AnnPaths", "annotation description")
 
 
-@fixture
-def kegg_annotation_path() -> NamedTuple:
-    """Path to a KEGG and description for initial tests."""
-
-    annotation_path: pathlib.Path = pathlib.Path(
-        "/Volumes/DIME6/Anno/Func/DIAass_KGM.srt.gzgeneAss.gz",
-    )
-    hier_path: pathlib.Path = pathlib.Path(
-        "/Volumes/hpc-home/downloads/ko_KO.descr"
-    )
-
-    return AnnPaths(annotation=annotation_path, description=hier_path)
-
-
-@fixture
-def magvsgc_path() -> pathlib.Path:
-    """Path to a MAGvsGC file for testing"""
-
-    magvsgc: pathlib.Path = pathlib.Path(
-        "/Volumes/DIME6/Bin3SB/LOGandSUB/MAGvsGC.txt.gz"
-    )
-    return magvsgc
-
-
-@fixture
-def dime_magvsgc_path() -> pathlib.Path:
+@pytest.fixture
+def dime_magvsgc_path(local_data_dir: pathlib.Path) -> pathlib.Path:
     """Path to the MAGvsGC for DIME, a mid-size study."""
 
-    magvsgc: pathlib.Path = pathlib.Path("data/DIME/MAGvsGC.txt.gz")
+    magvsgc: pathlib.Path = local_data_dir / "DIME" / "MAGvsGC.txt.gz"
     return magvsgc
 
 
-@fixture
-def dime_nog_annotation_path() -> NamedTuple:
+@pytest.fixture
+def dime_nog_annotation_path(local_data_dir: pathlib.Path) -> NamedTuple:
     """Path for eggNOG annotation and description for DIME."""
 
-    annotation_path: pathlib.Path = pathlib.Path(
-        "data/DIME/DIAass_NOG.srt.gzgeneAss.gz"
+    annotation_path: pathlib.Path = (
+        local_data_dir / "DIME" / "DIAass_NOG.srt.gzgeneAss.gz"
     )
-    hier_path: pathlib.Path = pathlib.Path("data/DIME/NOG.descr")
+    hier_path: pathlib.Path = local_data_dir / "DIME" / "NOG.descr"
 
     return AnnPaths(annotation=annotation_path, description=hier_path)
 
 
-@fixture
-def dime_kegg_annotation_path() -> NamedTuple:
-    """Path for eggNOG annotation and description for DIME."""
+@pytest.fixture
+def dime_kegg_annotation_path(local_data_dir: pathlib.Path) -> NamedTuple:
+    """Path for KEGG annotation and description for DIME."""
 
-    annotation_path: pathlib.Path = pathlib.Path(
-        "data/DIME/DIAass_KGM.srt.gzgeneAss.gz"
+    annotation_path: pathlib.Path = (
+        local_data_dir / "DIME" / "DIAass_KGM.srt.gzgeneAss.gz"
     )
-    hier_path: pathlib.Path = pathlib.Path("data/DIME/KEGG.descr")
+    hier_path: pathlib.Path = local_data_dir / "DIME" / "KEGG.descr"
 
     return AnnPaths(annotation=annotation_path, description=hier_path)
 
 
+@pytest.mark.local_data
 def test_hs_kegg_init(dime_kegg_annotation_path):
     """Initialise a KEGG functional annotation from DataFrames."""
 
@@ -96,8 +72,11 @@ def test_hs_kegg_init(dime_kegg_annotation_path):
     s: HierarchicalSchema = HierarchicalSchema(
         name="KEGG", hierarchy=description, gene_map=annotation
     )
+    assert s.name == "KEGG"
+    assert len(s.functions) > 0
 
 
+@pytest.mark.local_data
 def test_hs_mgs_count(dime_kegg_annotation_path, dime_magvsgc_path):
     mgs: dict[str, MGS] = create.read_mag_vs_gc(
         dime_magvsgc_path, min_completeness=0, max_contamination=100
@@ -124,13 +103,16 @@ def test_hs_mgs_count(dime_kegg_annotation_path, dime_magvsgc_path):
 
     # f = s.function_counts(mgs)
     tbl: pd.DataFrame = s.function_counts(mgs_list)
+    assert not tbl.empty
 
 
-@fixture
-def pth_kegg_abd() -> pathlib.Path:
-    return pathlib.Path("data/DIME/KGML0.txt")
+@pytest.fixture
+def pth_kegg_abd(local_data_dir: pathlib.Path) -> pathlib.Path:
+    return local_data_dir / "DIME" / "KGML0.txt"
 
 
+@pytest.mark.local_data
+@pytest.mark.requires_rtk
 def test_score_gbm(pth_kegg_abd: pathlib.Path, tmp_path: pathlib.Path):
     gbm = RTKModules.from_bundled("GBM")
     pref: pathlib.Path = tmp_path / "test_gbm"
@@ -140,15 +122,18 @@ def test_score_gbm(pth_kegg_abd: pathlib.Path, tmp_path: pathlib.Path):
         assert pref.with_suffix(f".{xtn}").exists()
 
 
-@fixture
-def pth_mgs_kegg() -> pathlib.Path:
-    return pathlib.Path("output/KEGG")
+@pytest.fixture
+def pth_mgs_kegg(local_data_dir: pathlib.Path) -> pathlib.Path:
+    return local_data_dir / "output" / "KEGG"
 
 
+@pytest.mark.local_data
+@pytest.mark.requires_rtk
 def test_score_cli(pth_mgs_kegg: pathlib.Path, tmp_path: pathlib.Path):
     """Attempt to score multiple tables using the CLI function."""
 
     kegg_mgs: list[pathlib.Path] = list(pth_mgs_kegg.glob("MGS.1*.tsv.gz"))
+    assert kegg_mgs, f"No MGS.1*.tsv.gz tables found in {pth_mgs_kegg}"
     cli_function_modules(kegg_mgs, "GBM", tmp_path, "GBM")
     cli_function_modules(kegg_mgs, "BSB", tmp_path, "BSB")
     for tbl in kegg_mgs:
@@ -162,7 +147,7 @@ def test_score_cli(pth_mgs_kegg: pathlib.Path, tmp_path: pathlib.Path):
         assert not tbl.with_suffix("").exists()
 
 
-@fixture
+@pytest.fixture
 def enrich_counts() -> pd.DataFrame:
     """Function counts for 8 MAGs with metadata, plus one MAG (M8) without."""
 
@@ -176,7 +161,7 @@ def enrich_counts() -> pd.DataFrame:
     ).T
 
 
-@fixture
+@pytest.fixture
 def enrich_metadata() -> pd.DataFrame:
     """Metadata with a two-level, a boolean with NA, and a three-level
     column."""

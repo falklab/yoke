@@ -57,3 +57,22 @@ known-first-party = ["yoke"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "local_data: needs large local test data not in the repo (YOKE_LOCAL_DATA)",
+    "requires_rtk: needs the rtk binary on PATH",
+    "slow: takes more than a couple of seconds; skipped by the pre-commit hook",
+]
+
+[tool.coverage.run]
+source = ["yoke"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Baseline at time of setup; raise as coverage improves
+fail_under = 45

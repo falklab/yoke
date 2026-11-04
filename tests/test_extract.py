@@ -1,13 +1,13 @@
 import gzip
 from pathlib import Path
 
-from _pytest.fixtures import fixture
+import pytest
 
 from yoke import MAG
 from yoke.extract import MAGSequences
 
 
-@fixture
+@pytest.fixture
 def example_mag() -> MAG:
     """A single MAG for tests."""
     return MAG(
@@ -19,7 +19,7 @@ def example_mag() -> MAG:
     )
 
 
-@fixture
+@pytest.fixture
 def example_mags() -> list[MAG]:
     """A list of MAGs originating from two different assemblies for tests."""
 
@@ -48,22 +48,27 @@ def example_mags() -> list[MAG]:
     ]
 
 
-@fixture
-def example_assembly_dir() -> Path:
+@pytest.fixture
+def example_assembly_dir(data_dir: Path) -> Path:
     """Assembly directory for tests."""
-    return (Path("tests") / "data").resolve()
+    return data_dir.resolve()
 
 
-def test_from_assembly_dir(example_mag: MAG, example_assembly_dir):
+def test_from_assembly_dir(
+    example_mag: MAG, example_assembly_dir: Path, data_dir: Path
+):
     mag_seq = MAGSequences.from_assembly_dir(example_mag, example_assembly_dir)
     assert mag_seq.mag is example_mag
-    resolved_path = Path("tests", "data", "Assmbl_Exmpl", "metag").absolute()
+    # Sample1 is part of a coassembly, so is resolved via assembly.txt
+    assert mag_seq.sample_assembly == data_dir / "Assmbl_Exmpl" / "metag"
     # Contig ID list should start empty
     assert isinstance(mag_seq.contig_ids, list)
     assert len(mag_seq.contig_ids) == 0
 
 
-def test_group_mags(example_mags: list[MAG], example_assembly_dir: Path):
+def test_group_mags(
+    example_mags: list[MAG], example_assembly_dir: Path, data_dir: Path
+):
     mag_seqs = [
         MAGSequences.from_assembly_dir(x, example_assembly_dir)
         for x in example_mags
@@ -74,15 +79,14 @@ def test_group_mags(example_mags: list[MAG], example_assembly_dir: Path):
     expected_mags = dict(
         zip(
             [
-                Path("tests", "data", "Assmbl_Exmpl", "metag").absolute(),
-                Path(
-                    "tests", "data", "Sample2", "assemblies", "metag"
-                ).absolute(),
+                data_dir / "Assmbl_Exmpl" / "metag",
+                data_dir / "Sample2" / "assemblies" / "metag",
             ],
             [
                 {"Sample1__SemiBin_177.fa.gz", "Sample1__SemiBin_1.fa.gz"},
                 {"Sample2__SemiBin_666.fa.gz"},
             ],
+            strict=True,
         )
     )
     # Test groups have expected contents
@@ -116,7 +120,10 @@ def test_extract_contigs(
 
 
 def test__extract_contigs_sample(
-    example_mags: list[MAG], example_assembly_dir: Path, tmp_path: Path
+    example_mags: list[MAG],
+    example_assembly_dir: Path,
+    expected_dir: Path,
+    tmp_path: Path,
 ):
     """Test that we can extract contigs from a single assembly."""
     tmp_out = tmp_path / "fasta"
@@ -130,9 +137,7 @@ def test__extract_contigs_sample(
 
     # Check output is as expected - these are very small FASTA files
     # for which expected version have been created
-    expected_path = Path(
-        "tests", "expected", "test_extract_contigs_sample"
-    ).absolute()
+    expected_path = expected_dir / "test_extract_contigs_sample"
     assert expected_path.exists()
     for exp_file in expected_path.glob("*.fna"):
         exp_out = exp_file.name + ".gz"
@@ -142,5 +147,5 @@ def test__extract_contigs_sample(
         with gzip.open(matched[0], "rt") as r, open(exp_file) as e:
             r_lines, e_lines = r.readlines(), e.readlines()
             assert len(r_lines) == len(e_lines)
-            for a, b in zip(r_lines, e_lines):
+            for a, b in zip(r_lines, e_lines, strict=True):
                 assert a == b

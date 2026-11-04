@@ -1,9 +1,5 @@
-import pathlib
-
-from _pytest.fixtures import fixture
-
 from yoke.annotations import RTKModules
-from yoke.data.utils import ModuleInfo, BundledModules
+from yoke.data.utils import BundledModules
 
 
 def test_gbm_enum():

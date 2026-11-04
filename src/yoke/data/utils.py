@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 
 class ModuleInfo(NamedTuple):
-    """Information about modules which are bundled with yoke"""
+    """Information about modules which are bundled with yoke."""
 
     name: str
     """Short name of the modules used in output files (e.g. BSB)"""

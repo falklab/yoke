@@ -1,5 +1,3 @@
-from typing import List
-
 import numpy as np
 import pytest
 
@@ -15,7 +13,7 @@ def simple_contig() -> Contig:
 
 
 def test_contig_from_str():
-    contigs: List[Contig] = Contig.from_str(
+    contigs: list[Contig] = Contig.from_str(
         "1,2,3,4,5,,5,6,3,2,2,1", name_prefix="C"
     )
     assert len(contigs) == 2
@@ -37,7 +35,7 @@ def test_contig_find_indices(simple_contig):
 
 def test_contig_get_context(simple_contig):
     contig: Contig = simple_contig
-    ctxt = contig.get_context(genes=[4, 5], flanking=int(2))
+    ctxt = contig.get_context(genes=[4, 5], flanking=2)
     expect = np.array(
         [
             [2, 3, 4, 5, 4, 5],
@@ -58,5 +56,5 @@ def test_contig_reverse(simple_contig):
 
 def test_contig_get_contexts(simple_contig):
     """Get the context of a pattern of genes from multiple contigs."""
-    ctgs: List[Contig] = [simple_contig, Contig.reverse(simple_contig)]
+    ctgs: list[Contig] = [simple_contig, Contig.reverse(simple_contig)]
     Contig.get_contexts(ctgs, [4, 5], flanking=2)

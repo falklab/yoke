@@ -1,12 +1,10 @@
 import gzip
 from pathlib import Path
-from typing import List
 
-import pyfastx
 from _pytest.fixtures import fixture
 
 from yoke import MAG
-from yoke.extract import MAGSequences, cli_extract_contigs
+from yoke.extract import MAGSequences
 
 
 @fixture
@@ -22,7 +20,7 @@ def example_mag() -> MAG:
 
 
 @fixture
-def example_mags() -> List[MAG]:
+def example_mags() -> list[MAG]:
     """A list of MAGs originating from two different assemblies for tests."""
 
     return [
@@ -65,7 +63,7 @@ def test_from_assembly_dir(example_mag: MAG, example_assembly_dir):
     assert len(mag_seq.contig_ids) == 0
 
 
-def test_group_mags(example_mags: List[MAG], example_assembly_dir: Path):
+def test_group_mags(example_mags: list[MAG], example_assembly_dir: Path):
     mag_seqs = [
         MAGSequences.from_assembly_dir(x, example_assembly_dir)
         for x in example_mags
@@ -105,7 +103,7 @@ def test_add_contig_ids(example_mags, example_assembly_dir: Path):
 
 
 def test_extract_contigs(
-    example_mags: List[MAG], example_assembly_dir: Path, tmp_path: Path
+    example_mags: list[MAG], example_assembly_dir: Path, tmp_path: Path
 ):
     mag_seqs = [
         MAGSequences.from_assembly_dir(x, example_assembly_dir)
@@ -118,7 +116,7 @@ def test_extract_contigs(
 
 
 def test__extract_contigs_sample(
-    example_mags: List[MAG], example_assembly_dir: Path, tmp_path: Path
+    example_mags: list[MAG], example_assembly_dir: Path, tmp_path: Path
 ):
     """Test that we can extract contigs from a single assembly."""
     tmp_out = tmp_path / "fasta"
@@ -141,7 +139,7 @@ def test__extract_contigs_sample(
         matched = [x for x in fastas if x.name == exp_out]
         assert len(matched) == 1
         # Could instead hash... but I only thought of it after
-        with gzip.open(matched[0], "rt") as r, open(exp_file, "rt") as e:
+        with gzip.open(matched[0], "rt") as r, open(exp_file) as e:
             r_lines, e_lines = r.readlines(), e.readlines()
             assert len(r_lines) == len(e_lines)
             for a, b in zip(r_lines, e_lines):

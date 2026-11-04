@@ -1,5 +1,4 @@
-"""Create representations of the gene content of MGS for functional or pangenome
-analysis.
+"""Represent the gene content of MGS for functional or pangenome analysis.
 
 Each Metagenomic Species (MGS) is a collection of sufficiently similar
 metagenome assembled genomes (MAGs). Each MAG contains many genes, arranged in
@@ -22,13 +21,11 @@ import csv
 import gzip
 import itertools
 import pathlib
-import tarfile
 from collections import Counter
-from typing import Dict, List, Optional, Set, Tuple, Union
+from collections.abc import Iterator
 
 import numpy as np
 import pandas as pd
-from multimethod import multimethod, multimeta
 
 DEF_MAGCVSGC_COLS = dict(
     completeness="Completeness",
@@ -46,7 +43,7 @@ DEF_MAGCVSGC_COLS = dict(
 class MGS:
     """A metagenomic species."""
 
-    def __init__(self, name: str, mags: List[MAG]) -> None:
+    def __init__(self, name: str, mags: list[MAG]) -> None:
         """A metagenomic species.
 
         Args:
@@ -54,12 +51,11 @@ class MGS:
             mags (List[MAG]): MAGs which make up this MGS
         """
         self.name: str = name
-        self.mags: List[MAG] = mags
+        self.mags: list[MAG] = mags
 
     @staticmethod
     def from_dataframe_group(group: pd.DataFrame) -> MGS:
-        """Produce single MGS object from a DataFrame, typically MAGvsGC from
-        MG-TK.
+        """Produce one MGS object from a DataFrame, typically MG-TK MAGvsGC.
 
         Pass a section of the MAGvsGC DataFrame containing all MAG from one
         MGS. An MGS class object will be created from these MGS.
@@ -72,7 +68,7 @@ class MGS:
             MGS: An MGS containing a MAG for each row
         """
         # Make each MAG from a single row of the DataFrame
-        mags: List[MAG] = list(group.apply(MAG.from_series, axis=1))
+        mags: list[MAG] = list(group.apply(MAG.from_series, axis=1))
         name: str = group.iloc[0][DEF_MAGCVSGC_COLS["mgs"]]
         return MGS(name=name, mags=mags)
 
@@ -80,9 +76,8 @@ class MGS:
         return f"MGS[{self.name}, {len(self.mags)} MAGs]"
 
     @property
-    def genes(self) -> Set[int]:
+    def genes(self) -> set[int]:
         """Set of all genes in this MGS."""
-
         return set().union(*(x.genes for x in self.mags))
 
     @property
@@ -92,13 +87,12 @@ class MGS:
         The matrix will have genes on rows, with MAGs on columns. Each entry
         will be the number of times the gene occurs.
         """
-
         return pd.concat([mag.gene_series for mag in self.mags])
 
     @property
     def edges(
         self,
-    ) -> List[Tuple[int, int, Dict[str, int], Dict[str, Set[Contig]]]]:
+    ) -> list[tuple[int, int, dict[str, int], dict[str, set[Contig]]]]:
         """Edges between genes in this MGS.
 
         The return tuples are a, b, {MAG: count}, {MAG: contigs}
@@ -111,9 +105,8 @@ class MGS:
             count is a dictionary giving how many times this edge was observed
             in each MAG.
         """
-
-        count_dict: Dict[Tuple[int, int], Dict[str, int]] = dict()
-        contig_dict: Dict[Tuple[int, int], Dict[str, Set[Contig]]] = dict()
+        count_dict: dict[tuple[int, int], dict[str, int]] = dict()
+        contig_dict: dict[tuple[int, int], dict[str, set[Contig]]] = dict()
         # Got to be a smarter way of doing this, but this works
         # At least rewrite with defaultdict or something
         for mag in self.mags:
@@ -142,7 +135,7 @@ class MAG:
         representative: bool,
         completeness: float,
         contamination: float,
-        contigs: List[Contig],
+        contigs: list[Contig],
     ) -> None:
         """A MAG based on gene catalogue content.
 
@@ -157,11 +150,13 @@ class MAG:
         self.representative: bool = representative
         self.completeness: float = completeness
         self.contamination: float = contamination
-        self.contigs: List[Contig] = contigs
+        self.contigs: list[Contig] = contigs
 
     @staticmethod
-    def from_series(mag_series: pd.Series, cols: Dict[str, str] = None) -> MAG:
-        """_summary_
+    def from_series(
+        mag_series: pd.Series, cols: dict[str, str] | None = None
+    ) -> MAG:
+        """Create a MAG from one row of a MAGvsGC table.
 
         Args:
             mag_series (pd.Series): Series containing required fields
@@ -176,7 +171,7 @@ class MAG:
         representative: bool = len(mag_series[cols["representative"]]) > 0
         completeness: float = float(mag_series[cols["completeness"]])
         contamination: float = float(mag_series[cols["contamination"]])
-        contigs: List[Contig] = Contig.from_str(
+        contigs: list[Contig] = Contig.from_str(
             mag_series[cols["contigs"]], name_prefix=f"{name}_"
         )
 
@@ -189,7 +184,7 @@ class MAG:
         )
 
     @property
-    def genes(self) -> Set[int]:
+    def genes(self) -> set[int]:
         """Set of all genes in this MAG."""
         return set(
             itertools.chain.from_iterable(x.genes for x in self.contigs)
@@ -202,7 +197,7 @@ class MAG:
         return pd.Series(gene_count, name=self.name)
 
     @property
-    def edges(self) -> List[Tuple[int, int, Contig]]:
+    def edges(self) -> list[tuple[int, int, Contig]]:
         """All edges in this MAG.
 
         Return every edge implied by any contig in this MAG. This will include
@@ -212,8 +207,7 @@ class MAG:
         Returns:
             List[Tuple[int, int, Contig]]: List of all edges as a tuple
         """
-
-        edges: List[Tuple[int, int, Contig]] = [
+        edges: list[tuple[int, int, Contig]] = [
             (x[0], x[1], contig)
             for contig in self.contigs
             for x in contig.edges
@@ -227,15 +221,14 @@ class MAG:
 class Contig:
     """One contig, which is an ordered list of genes."""
 
-    def __init__(self, genes: List[int], name: Optional[str] = None) -> None:
+    def __init__(self, genes: list[int], name: str | None = None) -> None:
         """Representation of a single contig.
 
         Args:
             genes (List[int]): Ordered list of genes on contig
             name (Optional[str], optional): Name of contig. Defaults to None.
         """
-
-        self.genes: List[int] = [int(i) for i in genes if i != "?"]
+        self.genes: list[int] = [int(i) for i in genes if i != "?"]
         self.name: str = "" if name is None else name
 
     @staticmethod
@@ -244,15 +237,15 @@ class Contig:
         gene_delim: str = ",",
         contig_delim: str = ",,",
         name_prefix: str = "",
-    ) -> List[Contig]:
+    ) -> list[Contig]:
         """Create Contig from string representation of sequence of genes.
 
         Each contig will be given a number, prefixed with name_prefix.
 
         Args:
             contig_str (str): String giving the order of genes on all contigs.
-            gene_delim (str, optional): Character which delimits genes. Defaults
-                to ",".
+            gene_delim (str, optional): Character which delimits genes.
+                Defaults to ",".
             contig_delim (str, optional): String which indicates the end of a
                 contig. Defaults to ",,".
             name_prefix (str, optional): String to place before contig number.
@@ -262,7 +255,7 @@ class Contig:
             List[Contig]: _description_
         """
         # Split to contigs
-        contigs: List[Contig] = [
+        contigs: list[Contig] = [
             Contig(ctg.split(gene_delim), name=f"{name_prefix}{i}")
             for i, ctg in enumerate(contig_str.split(contig_delim))
         ]
@@ -285,20 +278,18 @@ class Contig:
         return Contig(genes=rev_genes, name=f"{contig.name}_r")
 
     @property
-    def edges(self) -> List[Tuple[int, int]]:
+    def edges(self) -> list[tuple[int, int]]:
         """All the edges supported by this contig (consecutive genes).
-
 
         Returns:
             List[Tuple[int, int]]: List of adjacent genes on this contig.
         """
-
         return [
             (self.genes[i], self.genes[i + 1])
             for i in range(len(self.genes) - 1)
         ]
 
-    def get_indices(self, genes: List[int]) -> np.ndarray:
+    def get_indices(self, genes: list[int]) -> np.ndarray:
         """Positions on contig of a given sequence of genes.
 
         Args:
@@ -310,7 +301,6 @@ class Contig:
                 The indices correspond to the order of the genes in the input
                 pattern. Returns None when the pattern is not found.
         """
-
         contig_genes: np.ndarray = np.array(self.genes)
         pattern: np.ndarray = np.array(genes)
         # Sliding window is inefficient, potentially an area to optimise
@@ -344,10 +334,9 @@ class Contig:
 
     @staticmethod
     def get_contexts(
-        contigs: List[Contig], genes: List[int], flanking: int
+        contigs: list[Contig], genes: list[int], flanking: int
     ) -> pd.DataFrame:
-        """Get a sequence of genes plus some up or downstream on multiple
-        contigs.
+        """Get a sequence of genes plus flanking genes on multiple contigs.
 
         Get the genomic context of a pattern of genes, on multiple contigs.
         See `Contig.get_context()` for details of arguments and method.
@@ -362,7 +351,7 @@ class Contig:
         )
         return ctxts
 
-    def get_context(self, genes: List[int], flanking: int) -> np.ndarray:
+    def get_context(self, genes: list[int], flanking: int) -> np.ndarray:
         """Get a sequence of genes plus some up or downstream.
 
         Finds each occurrence of a given pattern of genes, and returns
@@ -380,7 +369,6 @@ class Contig:
             Array where is row is an occurrence of the pattern, and each entry
             a gene ID. The central columns in the matrix are the pattern.
         """
-
         indices: np.ndarray = self.get_indices(genes=genes)
         coll = []
         for m in indices:
@@ -395,12 +383,12 @@ class Contig:
 
 
 def read_mag_vs_gc(
-    file: Union[str, pathlib.Path],
+    file: str | pathlib.Path,
     min_completeness: float = 0,
     max_contamination: float = 100,
-    cols: Dict[str, str] = None,
+    cols: dict[str, str] | None = None,
     **kwargs,
-) -> Dict[str, MGS]:
+) -> dict[str, MGS]:
     """Create MGS from file connecting MAGs to gene catalogue.
 
     The MAGvsGC file in MG-TK provides an ordered lists of genes found
@@ -414,7 +402,6 @@ def read_mag_vs_gc(
     :param cols: Column names in the input file
     :param **kwargs: Passed to pandas read_csv
     """
-
     if cols is None:
         cols = DEF_MAGCVSGC_COLS
 
@@ -427,35 +414,34 @@ def read_mag_vs_gc(
     ].astype({cols["representative"]: "str"})
 
     # Group by MGS
-    mgs: List[MGS] = list(
+    mgs: list[MGS] = list(
         df.groupby(by=cols["mgs"]).apply(MGS.from_dataframe_group)
     )
 
-    return dict(zip((x.name for x in mgs), mgs))
+    return dict(zip((x.name for x in mgs), mgs, strict=True))
 
 
 def generate_mgs_from_magvsgc(
-    file: Union[str, pathlib.Path],
+    file: str | pathlib.Path,
     compressed: bool = True,
     min_completeness: float = 0,
     max_contamination: float = 100,
-    cols: Dict[str, str] = None,
+    cols: dict[str, str] | None = None,
     **kwargs,
-) -> MGS:
+) -> Iterator[MGS]:
     """Yield MGS objects based on MAGvsGC content.
 
-    Compared to read_mag_vs_gc, this avoids reading the whole table into memory,
-    yields individual MGS objects rather than collecting them.
+    Compared to read_mag_vs_gc, this avoids reading the whole table into
+    memory, and yields individual MGS objects rather than collecting them.
     """
-
     if cols is None:
         cols = DEF_MAGCVSGC_COLS
 
     openfn = (lambda x: gzip.open(x, "rt")) if compressed else open
     with openfn(file) as magvsgc:
         reader = csv.DictReader(magvsgc, delimiter="\t", **kwargs)
-        mags: List[Dict] = []
-        prev_mgs: Optional[str] = None
+        mags: list[dict] = []
+        prev_mgs: str | None = None
         for row in reader:
             mgs: str = row[cols["mgs"]]
             if (prev_mgs != mgs) and (len(mags) > 0):

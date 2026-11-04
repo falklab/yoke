@@ -1,6 +1,6 @@
 import pathlib
 from collections import namedtuple
-from typing import NamedTuple, List, Dict
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -9,14 +9,14 @@ from _pytest.fixtures import fixture
 from scipy.stats import fisher_exact
 
 from yoke import create
-from yoke.create import MGS
 from yoke.annotations import (
     HierarchicalSchema,
     RTKModules,
+    cli_function_enrichment,
     cli_function_modules,
     function_enrichment,
-    cli_function_enrichment,
 )
+from yoke.create import MGS
 
 AnnPaths = namedtuple("AnnPaths", "annotation description")
 
@@ -99,7 +99,7 @@ def test_hs_kegg_init(dime_kegg_annotation_path):
 
 
 def test_hs_mgs_count(dime_kegg_annotation_path, dime_magvsgc_path):
-    mgs: Dict[str, MGS] = create.read_mag_vs_gc(
+    mgs: dict[str, MGS] = create.read_mag_vs_gc(
         dime_magvsgc_path, min_completeness=0, max_contamination=100
     )
 
@@ -119,7 +119,7 @@ def test_hs_mgs_count(dime_kegg_annotation_path, dime_magvsgc_path):
     s: HierarchicalSchema = HierarchicalSchema(
         name="KEGG", hierarchy=description, gene_map=annotation
     )
-    mgs_list: List[MGS] = list(mgs.values())[0:10]
+    mgs_list: list[MGS] = list(mgs.values())[0:10]
     mgs: MGS = mgs_list[0]
 
     # f = s.function_counts(mgs)
@@ -148,7 +148,7 @@ def pth_mgs_kegg() -> pathlib.Path:
 def test_score_cli(pth_mgs_kegg: pathlib.Path, tmp_path: pathlib.Path):
     """Attempt to score multiple tables using the CLI function."""
 
-    kegg_mgs: List[pathlib.Path] = list(pth_mgs_kegg.glob("MGS.1*.tsv.gz"))
+    kegg_mgs: list[pathlib.Path] = list(pth_mgs_kegg.glob("MGS.1*.tsv.gz"))
     cli_function_modules(kegg_mgs, "GBM", tmp_path, "GBM")
     cli_function_modules(kegg_mgs, "BSB", tmp_path, "BSB")
     for tbl in kegg_mgs:
@@ -209,7 +209,7 @@ def test_enrichment_columns_and_index(enrich_counts, enrich_metadata):
     """Output has one row per tested column and function, three level
     columns are skipped, and each test gives stat, p and adjusted p."""
 
-    tests: List[str] = ["fisher", "barnard", "boschloo"]
+    tests: list[str] = ["fisher", "barnard", "boschloo"]
     res: pd.DataFrame = function_enrichment(
         enrich_counts, enrich_metadata, tests=tests
     )
@@ -410,7 +410,7 @@ def test_enrichment_cli_numeric_ids(
     """Numeric-looking identifiers match between counts and metadata,
     including leading zeros."""
 
-    ids: List[str] = [f"00{i}" for i in range(9)]
+    ids: list[str] = [f"00{i}" for i in range(9)]
     pth_c: pathlib.Path = tmp_path / "counts.tsv"
     pth_md: pathlib.Path = tmp_path / "metadata.tsv"
     pth_out: pathlib.Path = tmp_path / "out.tsv"

@@ -1,9 +1,10 @@
-"""
-In MATAFILER output, MAGs are defined as a list of contig IDs, and as a list of gene IDs.
-There are circumstances where we might desire a simple FASTA file containing these
-sequences for analysis.
-This module provides functions for generating these files either on the fly to stdout,
-or in bulk writing to disk.
+"""Extract the sequences belonging to MAGs to FASTA files.
+
+In MATAFILER output, MAGs are defined as a list of contig IDs, and as a list
+of gene IDs. There are circumstances where we might desire a simple FASTA
+file containing these sequences for analysis.
+This module provides functions for generating these files either on the fly
+to stdout, or in bulk writing to disk.
 """
 
 from __future__ import annotations
@@ -13,19 +14,19 @@ import itertools
 import logging
 import multiprocessing
 import pathlib
+import re
 from collections import defaultdict
+from collections.abc import Iterable
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-import re
-from typing import Optional, Dict, Iterable, List, Tuple, Any
 
 import pyfastx
 from tqdm import tqdm
 
-from yoke.create import MAG
 from yoke import create
 from yoke.annotations import _csv_field_adjust
+from yoke.create import MAG
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -36,9 +37,9 @@ class MAGSequences:
 
     mag: MAG
     sample_assembly: Path
-    contig_ids: List[str] = field(default_factory=list)
+    contig_ids: list[str] = field(default_factory=list)
 
-    def get_contig_link_file(self, binner: Optional[str] = None) -> Path:
+    def get_contig_link_file(self, binner: str | None = None) -> Path:
         """Identify the file which links MAG name to contig ID.
 
         Typically an assembly directory has subdirectories `./Binning/{binner},
@@ -51,7 +52,6 @@ class MAGSequences:
         Returns:
             Path to the contig link file
         """
-
         binning_dir: Path = self.sample_assembly / "Binning"
         if binner is None:
             # Take first subdirectory
@@ -85,7 +85,7 @@ class MAGSequences:
         suffix=".contigs.fna.gz",
         **kwargs,
     ) -> gzip.GzipFile:
-        """Open a gzip file for writing sequences to/
+        """Open a gzip file for writing sequences to.
 
         Args:
             output_dir: Path to the output directory
@@ -100,9 +100,7 @@ class MAGSequences:
 
     @staticmethod
     def from_assembly_dir(mag: MAG, assembly_dir: Path) -> MAGSequences:
-        """Create a MAGSequences object for a MAG looking in a project
-        assembly directory."""
-
+        """Create a MAGSequences object for a MAG from its assembly dir."""
         return MAGSequences(
             mag=mag,
             sample_assembly=SequenceExtractor(assembly_dir).get_mag_assembly(
@@ -113,19 +111,19 @@ class MAGSequences:
     @staticmethod
     def group_mags(
         mags: Iterable[MAGSequences],
-    ) -> Dict[Path, List[MAGSequences]]:
+    ) -> dict[Path, list[MAGSequences]]:
         """Group MAGs by assembly of origin.
 
-        Uses MAG name to resolve which assembly the MAG originates from, and group these by
+        Uses MAG name to resolve which assembly the MAG originates from, and
+        groups MAGs by that assembly.
 
         Args:
             mags: A collection of MAGs from the same project.
 
         Returns:
-           Dict[Path, List[MAG]]]: A dict in which the key is an assembly directory, and a
-            value a list of all the MAGs in the input associated with that assembly.
+            A dict in which the key is an assembly directory, and a value a
+            list of all the MAGs in the input associated with that assembly.
         """
-
         collected = defaultdict(list)
         for mag in mags:
             collected[mag.sample_assembly].append(mag)
@@ -134,10 +132,11 @@ class MAGSequences:
 
     @staticmethod
     def add_contig_ids(
-        mags: List[MAGSequences], **kwargs
-    ) -> List[MAGSequences]:
-        """Add contig IDs to a group of MAGs from the same origin assembly. This is
-        more efficient than handling each MAG individually.
+        mags: list[MAGSequences], **kwargs
+    ) -> list[MAGSequences]:
+        """Add contig IDs to a group of MAGs from the same origin assembly.
+
+        This is more efficient than handling each MAG individually.
 
         Args:
               mags: A collection of MAGs from the same project.
@@ -146,14 +145,13 @@ class MAGSequences:
         Returns:
               Input mags with contig IDs added.
         """
-
         logger.debug("Attach contig IDs to %s MAGs", len(mags))
         logger.debug("Validate all from sample sample assembly")
         sample_paths = set(mag.sample_assembly for mag in mags)
         if len(sample_paths) != 1:
             logger.fatal(
-                "All MAGs must originate from same assembly when extracting IDs. "
-                "Found %s for MAGs %s",
+                "All MAGs must originate from same assembly when extracting "
+                "IDs. Found %s for MAGs %s",
                 sample_paths,
                 [mag.mag.name for mag in mags],
             )
@@ -163,7 +161,7 @@ class MAGSequences:
             )
 
         ids = {mag.mag.name.split("__")[1]: mag for mag in mags}
-        with open(mags[0].get_contig_link_file(**kwargs), "rt") as f:
+        with open(mags[0].get_contig_link_file(**kwargs)) as f:
             for line in f:
                 parts = line.rstrip().split("\t")
                 # Do not append if not a MAG we care about
@@ -174,27 +172,30 @@ class MAGSequences:
 
     @staticmethod
     def extract_contigs(
-        mags: List[MAGSequences],
+        mags: list[MAGSequences],
         output_dir: Path,
-        binner: Optional[str] = None,
+        binner: str | None = None,
         processes: int = 1,
         progress_bar: bool = False,
         **kwargs,
-    ) -> List[Path]:
-        """Extract contigs from MAGs to compressed FASTA files
+    ) -> list[Path]:
+        """Extract contigs from MAGs to compressed FASTA files.
 
         Write individual FASTA files representing the MAGs to a directory.
 
         Args:
-            mags: List of MAGs to write. Can originate from different assemblies.
+            mags: List of MAGs to write. Can originate from different
+                assemblies.
             output_dir: Path to write output in
+            binner: Binner whose results define the MAGs, if several were
+                run on the same assemblies
             processes: Number of multiprocessing processes to use
+            progress_bar: Show a progress bar
             **kwargs: Passed to multiprocessing.Pool construtor
 
-        Return:
+        Returns:
             Paths for all the created files
         """
-
         grouped_mags = MAGSequences.group_mags(mags)
         created = []
         if processes > 1:
@@ -210,7 +211,7 @@ class MAGSequences:
             val_iter = grouped_mags.items()
             if progress_bar:
                 val_iter = tqdm(val_iter, total=len(grouped_mags))
-            for ass_dir, mags in val_iter:
+            for _ass_dir, mags in val_iter:
                 mags = MAGSequences.add_contig_ids(mags, binner=binner)
                 c = MAGSequences._extract_contigs_sample(
                     mags, output_dir=output_dir
@@ -220,28 +221,28 @@ class MAGSequences:
 
     @staticmethod
     def _extract_contigs_sample(
-        mags: List[MAGSequences], output_dir: Path, **kwargs
-    ) -> List[Path]:
-        """Extract contigs from MAGs from a single assembly to compressed FASTA files.
+        mags: list[MAGSequences], output_dir: Path, **kwargs
+    ) -> list[Path]:
+        """Extract contigs from MAGs of one assembly to compressed FASTA files.
 
         Args:
             mags: List of MAGs to write, must originate from a single assembly
             output_dir: Path to write output in
+            **kwargs: Passed to MAGSequences.get_contig_link_file
 
-        Return:
+        Returns:
             Paths for all the created files
         """
-
         # Create a dict mapping contig id to MAG
         # Probably a more elegant way to do this
-        contig_map: Dict = dict()
+        contig_map: dict = dict()
         for mag in mags:
             for contig in mag.contig_ids:
                 contig_map[contig] = mag
 
         with ExitStack() as stack:
             # Will have a dynamic number of file contexts to manage
-            output_files: Dict = {
+            output_files: dict = {
                 m.mag.name: stack.enter_context(
                     m.__open_gzip(output_dir, mode="wt")
                 )
@@ -257,7 +258,7 @@ class MAGSequences:
                     mag_name = contig_map[name].mag.name
                     output_files[mag_name].write(f">{name}\n")
                     output_files[mag_name].write(f"{seq}\n")
-                except KeyError as e:
+                except KeyError:
                     logger.debug("%s not found in contig map", name)
 
         return [Path(o.name) for o in output_files.values()]
@@ -273,7 +274,7 @@ class SequenceExtractor:
     CONTIG_FASTA: Path = Path("scaffolds.fasta.filt")
     """Location of the contig FASTA within a sample assembly directory."""
     PROTEIN_FASTA: Path = Path("genePred") / "proteins.shrtHD.faa.gz"
-    """Location of the gene protein FASTA within a sample assembly directory."""
+    """Location of the protein FASTA within a sample assembly directory."""
     TRIM_NAME_REGEX: re.Pattern = re.compile(r"^(.*)M\d{1,2}$")
 
     def __init__(self, assembly_path: Path) -> None:
@@ -288,15 +289,12 @@ class SequenceExtractor:
         Returns:
             Path: Path to the assembly directory for this MAG
         """
-
         sample_name = mag.name.split(self.SAMPLE_SEPARATOR)[0]
         sample_dir = self.assembly_path / sample_name
         if not sample_dir.is_dir():
             # Try dropping the trailing M\d{1,2}
             logger.debug("%s is not a directory, will try variant", sample_dir)
-            matches: Optional[re.Match] = self.TRIM_NAME_REGEX.search(
-                sample_name
-            )
+            matches: re.Match | None = self.TRIM_NAME_REGEX.search(sample_name)
             if matches is not None:
                 sample_name = str(matches.group(1))
                 logger.debug("Trimmed sample name to %s", sample_name)
@@ -311,8 +309,8 @@ class SequenceExtractor:
                     f"{sample_dir} not found or is is not a directory"
                 )
 
-        # If a sample is part of a coassembly, it will have an `assembly.txt` file with the
-        # location of the assembly
+        # If a sample is part of a coassembly, it will have an `assembly.txt`
+        # file with the location of the assembly
         assembly_txt = sample_dir / self.ASSEMBLY_PATH / "assembly.txt"
         assembly_path = None
         if assembly_txt.is_file():
@@ -335,27 +333,27 @@ class SequenceExtractor:
         if assembly_path is None:
             logger.debug(
                 (
-                    "MAG %s: assembly.txt not found (%s) or referred to directory did"
-                    "not exist"
+                    "MAG %s: assembly.txt not found (%s) or referred to "
+                    "directory did not exist"
                 ),
                 mag.name,
                 assembly_txt,
             )
-            # Assume this is a single sample assembly, check for existence of scaffolds
+            # Assume this is a single sample assembly, check for existence of
+            # scaffolds
             assembly_path = sample_dir / self.ASSEMBLY_PATH
 
         if not (assembly_path / self.CONTIG_FASTA).is_file():
             raise FileNotFoundError(
-                "MAG %s: No scaffold FASTA found in directory %s",
-                mag.name,
-                str(assembly_path),
+                f"MAG {mag.name}: No scaffold FASTA found in directory "
+                f"{assembly_path}"
             )
 
         return assembly_path.absolute()
 
 
 def _multiproc_run(
-    mags: List[MAGSequences], output_dir: Path, binner: Optional[str]
+    mags: list[MAGSequences], output_dir: Path, binner: str | None
 ):
     mags = MAGSequences.add_contig_ids(mags, binner=binner)
     return MAGSequences._extract_contigs_sample(mags, output_dir)
@@ -367,11 +365,10 @@ def cli_extract_contigs(
     output: pathlib.Path,
     completeness: float = 0,
     contamination: float = 100,
-    binner: Optional[str] = None,
+    binner: str | None = None,
     processes: int = 1,
 ) -> None:
     """Count how many genes have each functional annotation in all MAGS."""
-
     _csv_field_adjust()
     logger.setLevel(logging.INFO)
 
@@ -410,7 +407,7 @@ def cli_extract_contigs(
     logger.info(
         "Note: Progress bar updated when extraction begins for each assembly"
     )
-    files = MAGSequences.extract_contigs(
+    MAGSequences.extract_contigs(
         mags=mag_seqs,
         output_dir=pth_out,
         binner=binner,

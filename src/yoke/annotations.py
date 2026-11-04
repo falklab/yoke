@@ -18,13 +18,15 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Any, Iterable, List, Set, Dict, Union, Generator
+from typing import Optional, Any, Iterable, List, Set, Dict, Union, Generator, Literal
 
 import numpy as np
 import pandas as pd
 import tqdm
 from multimethod import multimethod
 from pandas.core.computation.expr import intersection
+from scipy.stats import barnard_exact, boschloo_exact, fisher_exact
+from statsmodels.stats import multitest
 
 from yoke.data.utils import BundledModules, ModuleInfo
 from yoke.utils import GzipManager
@@ -466,6 +468,246 @@ def _csv_field_adjust():
     logger.debug("This has been needed in the past to parse large entries in "
                  "MAGvsGC")
     csv.field_size_limit(sys.maxsize)
+
+
+_ENRICHMENT_TESTS = {
+    "fisher": fisher_exact,
+    "barnard": barnard_exact,
+    "boschloo": boschloo_exact,
+}
+
+
+def _check_unique(index: pd.Index, what: str) -> None:
+    """Raise a ValueError naming duplicated entries in an index."""
+    dups = index[index.duplicated()].unique()
+    if len(dups) > 0:
+        raise ValueError(
+            f"Duplicate {what}: {', '.join(str(x) for x in dups[:5])}"
+            + (f" and {len(dups) - 5} more" if len(dups) > 5 else "")
+        )
+
+
+def function_enrichment(
+        function_counts: pd.DataFrame,
+        metadata: pd.DataFrame,
+        tests: Iterable[
+            Literal["fisher", "barnard", "boschloo"]
+        ] = ("fisher", "barnard"),
+        adj_method: str = "fdr_bh"
+) -> pd.DataFrame:
+    """Test a table of functions for association to categorical metadata with
+    two classes.
+
+    Args:
+        function_counts: Table with rows being a functional annoation, columns
+        an MGS or MAG, and entries a numerical value. Values greater than 0
+        are treated as the function being present.
+        metadata: MGS or MAG on rows, and each column should be a metadata
+        category to test against, having only 2 levels. NAs will be removed
+        from metadata.
+        tests: List of the types of test to carry out. Available are
+        * fisher - fishers exact test
+        * barnard - barnards exact test
+        * boschloo - boschloos exact test
+        all implemented by scipy
+        adj_method: Multiple test correction method to apply, accepting any
+        method from statsmodels.stats.multitest
+
+    Returns:
+        Table indexed by metadata column and function, with columns
+        {test}_stat, {test}_p and {test}_p_adj for each requested test.
+        Correction is applied separately for each metadata column and test.
+        Metadata columns without exactly 2 levels are skipped with a warning.
+
+    Raises:
+        ValueError: Unknown test or correction method, duplicated
+        identifiers, non-numeric counts, or no MGS/MAGs shared between
+        function_counts and metadata.
+    """
+    tests = list(tests)
+    unknown = set(tests) - set(_ENRICHMENT_TESTS)
+    if unknown:
+        raise ValueError(f"Unknown enrichment tests: {sorted(unknown)}")
+    # Check correction method before running tests, which can be slow
+    try:
+        multitest.multipletests([0.5], method=adj_method)
+    except ValueError:
+        raise ValueError(
+            f"Unknown multiple test correction method: {adj_method}"
+        ) from None
+
+    _check_unique(function_counts.index, "function IDs in function_counts")
+    _check_unique(function_counts.columns, "MGS/MAGs in function_counts")
+    _check_unique(metadata.index, "MGS/MAGs in metadata")
+    non_numeric = [
+        str(c) for c, d in function_counts.dtypes.items()
+        if not pd.api.types.is_numeric_dtype(d)
+    ]
+    if non_numeric:
+        raise ValueError(
+            f"function_counts has non-numeric columns: {non_numeric[:5]}"
+        )
+
+    # Inform how many MGS/MAGs are not matched in metadata
+    dropped_tax = set(function_counts.columns) - set(metadata.index)
+    logger.info("%s MGS/MAGs not matched in metadata", len(dropped_tax))
+    logger.debug("%s", str(dropped_tax))
+    if len(dropped_tax) == len(function_counts.columns):
+        raise ValueError(
+            "No MGS/MAGs in function_counts match the metadata index. Check "
+            "the identifiers are the same, including their type (e.g. int "
+            "vs str)."
+        )
+
+    if len(function_counts) == 0:
+        logger.warning("function_counts has no functions, nothing to test")
+        return pd.DataFrame()
+
+    present = function_counts > 0
+
+    res = []
+    for col in metadata.columns:
+        md_col = metadata[col].dropna()
+        shared = present.columns.intersection(md_col.index)
+        if len(shared) == 0:
+            logger.warning(
+                "Metadata column %s has no non-NA values for MGS/MAGs in "
+                "function_counts, skipping", col
+            )
+            continue
+        md_col = md_col.loc[shared]
+        try:
+            levels = sorted(md_col.unique())
+        except TypeError:
+            # Mixed types can't be compared, so sort on string form
+            levels = sorted(md_col.unique(), key=str)
+        # Put True first so odds ratios are True vs False
+        if set(levels) == {True, False}:
+            levels = [True, False]
+        if len(levels) != 2:
+            logger.warning(
+                "Metadata column %s has %s levels (%s) for MGS/MAGs in "
+                "function_counts after removing NAs, needs 2, skipping",
+                col, len(levels), ", ".join(str(x) for x in levels[:5])
+            )
+            continue
+        logger.info(
+            "Testing %s with %s MGS/MAGs", col, len(shared)
+        )
+
+        # Each 2x2 table is built from counts of presence within each
+        # metadata level, so all levels are always represented
+        grp = md_col == levels[0]
+        fn = present[shared]
+        in_a = fn.loc[:, grp.values].sum(axis=1)
+        in_b = fn.loc[:, (~grp).values].sum(axis=1)
+        n_a, n_b = grp.sum(), (~grp).sum()
+
+        col_res = pd.DataFrame(index=fn.index)
+        for test in tests:
+            test_fn = _ENRICHMENT_TESTS[test]
+            stats = [
+                test_fn(np.array([[a, n_a - a], [b, n_b - b]]))
+                for a, b in zip(in_a, in_b)
+            ]
+            col_res[f"{test}_stat"] = [r.statistic for r in stats]
+            col_res[f"{test}_p"] = [r.pvalue for r in stats]
+            col_res[f"{test}_p_adj"] = multitest.multipletests(
+                col_res[f"{test}_p"].fillna(1.0),
+                method=adj_method
+            )[1]
+        col_res.index.name = "function"
+        res.append(col_res.assign(metadata=col))
+
+    if len(res) == 0:
+        return pd.DataFrame()
+    return (
+        pd.concat(res)
+        .reset_index()
+        .set_index(["metadata", "function"])
+    )
+
+
+def _read_id_table(pth: pathlib.Path) -> pd.DataFrame:
+    """Read a tab separated table indexed by the first column, keeping
+    identifiers as strings.
+
+    Column headers are always read as strings, so identifiers on the index
+    must be too for them to match, even when they look numeric (including
+    leading zeros). Passing converters with index_col=0 is not used, as it
+    is ignored when the first column has no header."""
+    tbl: pd.DataFrame = pd.read_csv(pth, sep="\t", converters={0: str})
+    tbl = tbl.set_index(tbl.columns[0])
+    if str(tbl.index.name).startswith("Unnamed:"):
+        tbl.index.name = None
+    return tbl
+
+
+def cli_function_enrichment(
+        counts: List[pathlib.Path],
+        metadata: pathlib.Path,
+        output: pathlib.Path,
+        tests: Iterable[str] = ("fisher", "barnard"),
+        adj_method: str = "fdr_bh",
+        columns: Optional[List[str]] = None
+) -> None:
+    """Test functions for association with two-level metadata categories.
+
+    Args:
+        counts: Paths to tab separated tables of function counts, with
+        functions on rows and MGS or MAGs on columns. Multiple tables are
+        combined column-wise, with missing functions treated as absent.
+        metadata: Path to tab separated metadata table, with MGS or MAG on
+        rows matching the count table columns.
+        output: Path to write the results table to.
+        tests: Tests to carry out, see function_enrichment.
+        adj_method: Multiple test correction method, see function_enrichment.
+        columns: Metadata columns to test. All columns tested if not given.
+    """
+
+    _csv_field_adjust()
+    logger.setLevel(logging.INFO)
+
+    logger.info("function_enrichment")
+    logger.info("|- Parameters -|")
+    logger.info("Function counts: %s", ", ".join(str(x) for x in counts))
+    logger.info("Metadata: %s", metadata)
+    logger.info("Output: %s", output)
+    logger.info("Tests: %s", ", ".join(tests))
+    logger.info("Adjustment method: %s", adj_method)
+    logger.info("Columns: %s", columns)
+
+    logger.info("Reading function counts")
+    tables: List[pd.DataFrame] = []
+    for pth in counts:
+        tbl: pd.DataFrame = _read_id_table(pth)
+        _check_unique(tbl.index, f"function IDs in {pth}")
+        tables.append(tbl)
+    _check_unique(
+        pd.Index([c for t in tables for c in t.columns]),
+        "MGS/MAGs across function count tables"
+    )
+    function_counts: pd.DataFrame = pd.concat(tables, axis=1).fillna(0)
+
+    logger.info("Reading metadata")
+    md: pd.DataFrame = _read_id_table(metadata)
+    if columns is not None:
+        missing: Set[str] = set(columns) - set(md.columns)
+        if missing:
+            raise ValueError(
+                f"Metadata columns not found: {sorted(missing)}"
+            )
+        md = md[columns]
+
+    res: pd.DataFrame = function_enrichment(
+        function_counts,
+        md,
+        tests=tests,
+        adj_method=adj_method
+    )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Writing results to %s", output)
+    res.to_csv(output, sep="\t")
 
 
 def cli_function_count(

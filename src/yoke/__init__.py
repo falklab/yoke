@@ -279,6 +279,84 @@ def cli():
         )
     )
 
+    parser_function_enrichment = subparsers.add_parser(
+        "function_enrichment",
+        help="Test functions for association with metadata",
+        description=(
+            "Test whether the presence of each function is associated with "
+            "a two-level metadata category, using exact tests on 2x2 "
+            "presence/absence tables. "
+            "Inputs are one or more function count tables, such as those "
+            "produced by `yoke function_counts`, with functions on rows and "
+            "MGS or MAGs on columns, and a tab separated metadata table with "
+            "MGS or MAGs on rows. Values greater than 0 are treated as the "
+            "function being present. Multiple count tables are combined, "
+            "with functions missing from a table treated as absent. "
+            "Each metadata column is tested separately, and must have exactly "
+            "two levels once NAs are removed; other columns are skipped. "
+            "Output is a table indexed by metadata column and function, with "
+            "a statistic, p-value and adjusted p-value for each test."
+        )
+    )
+    parser_function_enrichment.add_argument(
+        "-i",
+        "--input",
+        help="Function count tables. Can be gzipped.",
+        type=pathlib.Path,
+        nargs="+",
+        required=True
+    )
+    parser_function_enrichment.add_argument(
+        "-m",
+        "--metadata",
+        help=(
+            "Tab separated metadata table, with MGS or MAG identifiers in the "
+            "first column."
+        ),
+        type=pathlib.Path,
+        required=True
+    )
+    parser_function_enrichment.add_argument(
+        "-o",
+        "--output",
+        help="File to write results to. Existing file will be overwritten.",
+        type=pathlib.Path,
+        default=pathlib.Path(os.getcwd()) / "function_enrichment.tsv"
+    )
+    parser_function_enrichment.add_argument(
+        "-t",
+        "--tests",
+        help="Exact tests to carry out.",
+        nargs="+",
+        choices=["fisher", "barnard", "boschloo"],
+        default=["fisher", "barnard"]
+    )
+    parser_function_enrichment.add_argument(
+        "--adj-method",
+        help=(
+            "Multiple test correction method. Accepts any method from "
+            "statsmodels.stats.multitest.multipletests."
+        ),
+        default="fdr_bh"
+    )
+    parser_function_enrichment.add_argument(
+        "-c",
+        "--columns",
+        help="Metadata columns to test. Defaults to all columns.",
+        nargs="+",
+        default=None
+    )
+    parser_function_enrichment.set_defaults(
+        func=lambda x: annotations.cli_function_enrichment(
+            counts=x.input,
+            metadata=x.metadata,
+            output=x.output,
+            tests=x.tests,
+            adj_method=x.adj_method,
+            columns=x.columns
+        )
+    )
+
     parser_extract_contigs = subparsers.add_parser(
         "extract_contigs",
         help="Make FASTA files containing contigs for MAGs",

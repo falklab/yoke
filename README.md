@@ -74,6 +74,34 @@ The bundled modules are:
 - GBM: Human gut metabolism modules. Based on KEGG orthologs.
   ([Vieira-Silva et al., 2016](https://doi.org/10.1038/nmicrobiol.2016.88))
 
+### Function Enrichment
+Test whether the presence of each function is associated with a metadata category which has two levels
+(e.g. case/control, or a True/False trait).
+For each function, a 2x2 table of presence/absence in each level is tested using Fisher's, Barnard's or
+Boschloo's exact test (from `scipy`), and p-values are corrected for multiple testing within each metadata
+column and test (any method from `statsmodels.stats.multitest`, default Benjamini-Hochberg).
+
+Inputs are:
+- One or more function count tables, with functions on rows and MGS or MAGs on columns, such as those
+  produced by `function_counts` or `function_summarise`. Values greater than 0 count as present. Multiple
+  tables are combined, with functions missing from a table treated as absent.
+- A tab separated metadata table, with MGS or MAG identifiers in the first column and one column per
+  category to test. NAs are removed per column, and columns without exactly two levels are skipped.
+
+Example usage
+```
+yoke function_enrichment \
+-i KEGG/MGS.*.tsv.gz \
+-m mag_metadata.tsv \
+-o enrichment/KEGG.tsv \
+-t fisher barnard \
+-c disease
+```
+
+The output is indexed by metadata column and function, with `{test}_stat`, `{test}_p` and
+`{test}_p_adj` columns for each test. For Fisher's test the statistic is the odds ratio of presence in the
+first level (alphabetically, or `True` for boolean columns) relative to the second.
+
 ### Extract Contigs
 Produce FASTA files with the contigs for each MAG.
 This can be useful if you want to use MAGs for some analysis that needs a whole(ish)

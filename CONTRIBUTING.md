@@ -7,6 +7,21 @@ Open the repository in VS Code and choose **Dev Containers: Reopen in Container*
 The container has Python 3.12, [uv](https://docs.astral.sh/uv/) and `rtk`. On first start it creates the
 environment (`.venv`) and installs the pre-commit hooks. Files are formatted on save.
 
+#### Claude Code in the devcontainer
+The Claude Code VS Code extension works inside the container with no extra setup. Your login, sessions
+and memory live in a Docker named volume (`claude-code-config-<id>`, one per clone) mounted at
+`/home/vscode/.claude`, so they survive container rebuilds. Log in once after the first build; you will
+not be asked again.
+
+The volume is stored by Docker, not in the repository, and no host paths are committed. Put personal
+Claude settings in `.claude/settings.local.json` (gitignored); project-wide ones go in
+`.claude/settings.json` (committed).
+
+To log out completely or start fresh, stop the container, find the volume with
+`docker volume ls | grep claude-code-config` and remove it with `docker volume rm <name>`. To share one
+login across all your devcontainers, change the volume name in `devcontainer.json` to a fixed name such as
+`claude-code-config` locally, but don't commit that change.
+
 ### Option 2: Local
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then from the repository root
 ```

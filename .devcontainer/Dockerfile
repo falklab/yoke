@@ -13,3 +13,7 @@ RUN micromamba create --yes --prefix /opt/tools --override-channels \
         rtk \
     && micromamba clean --all --yes
 ENV PATH="${PATH}:/opt/tools/bin"
+
+# Mount point for the Claude Code config volume (see devcontainer.json).
+# It must exist and be owned by vscode, or the new volume is owned by root.
+RUN mkdir -p /home/vscode/.claude && chown vscode:vscode /home/vscode/.claude

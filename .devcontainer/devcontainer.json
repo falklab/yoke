@@ -3,9 +3,13 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume"
+  ],
   "containerEnv": {
     "UV_LINK_MODE": "copy",
-    "UV_PROJECT_ENVIRONMENT": "${containerWorkspaceFolder}/.venv"
+    "UV_PROJECT_ENVIRONMENT": "${containerWorkspaceFolder}/.venv",
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
   },
   "postCreateCommand": "uv sync && uv run pre-commit install",
   "customizations": {

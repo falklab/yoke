@@ -1,4 +1,5 @@
 import argparse
+import importlib.metadata
 import logging
 import os
 import pathlib
@@ -7,6 +8,8 @@ from ast import parse
 from yoke.data.utils import BundledModules
 from yoke import annotations, extract
 from yoke.create import MGS, MAG, Contig, read_mag_vs_gc
+
+__version__: str = importlib.metadata.version("yoke")
 
 # Configure logging
 logger: logging.Logger = logging.getLogger(__name__)
@@ -35,6 +38,11 @@ def cli():
         "--debug",
         action="store_true",
         help="Print debug messages to stdout"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}"
     )
 
     subparsers = parser.add_subparsers()

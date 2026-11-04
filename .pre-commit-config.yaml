@@ -5,9 +5,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^tests/(data|expected)/
+        exclude: ^(tests/(data|expected)|src/yoke/data)/
       - id: end-of-file-fixer
-        exclude: ^tests/(data|expected)/
+        exclude: ^(tests/(data|expected)|src/yoke/data)/
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files

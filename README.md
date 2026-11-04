@@ -48,7 +48,7 @@ the branching and release process.
 All of the CLI tools are accessible via `yoke`.
 Run `yoke` to see a list of available tools.
 
-Each individual tool will have its own help page, accessible via 
+Each individual tool will have its own help page, accessible via
 `yoke <tool> --help`.
 
 Some of the tools are described below as well.
@@ -134,7 +134,7 @@ This can be useful if you want to use MAGs for some analysis that needs a whole(
 genome context.
 I have tried to make sensible decision to minimise runtime: all MAGs from one assembly
 get written during the same linear scan through the assembly, and multiprocessing is
-supported to handle multiple assemblies simultaneously (though I'm not sure it actually 
+supported to handle multiple assemblies simultaneously (though I'm not sure it actually
 improves speed).
 Output is one gzipped fasta file per MAG, with name `{mag_name}.contigs.fna.gz`.
 

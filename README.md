@@ -20,14 +20,18 @@ Omitting `@vX.Y.Z` installs the latest development version from `main`.
 To install in a conda or mamba environment, make sure you have pip installed in the environment rather than using
 the system pip, then install as above.
 ```
-micromamba create --name yoke -c conda-forge -c bioconda python=3.12 pip rtk
+micromamba create --name yoke --override-channels \
+    -c https://prefix.dev/conda-forge -c https://prefix.dev/bioconda \
+    python=3.12 pip rtk
 micromamba activate yoke
 pip install git+https://github.com/falklab/yoke.git@vX.Y.Z
 ```
 
 ### External tools
 `yoke module_score` uses [rtk](https://github.com/hildebra/rtk), which must be available on your `PATH`.
-It can be installed from bioconda (`micromamba install -c bioconda rtk`), as in the example above.
+It can be installed from bioconda, as in the example above.
+The examples use the [prefix.dev](https://prefix.dev) mirrors of conda-forge and bioconda, as anaconda.org is
+blocked on some institute networks.
 
 ## Update
 To move to a different release, install again with the new tag

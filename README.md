@@ -2,7 +2,7 @@
 A python package with CLI tools for doing assorted bits of pangenomic and functional analysis with MG-TK outputs.
 
 ## Installation
-Yoke requires Python 3.12 or later.
+Yoke requires Python 3.11 or later.
 Releases are tagged `vX.Y.Z`; the available versions and their changes are listed on the
 [releases page](https://github.com/falklab/yoke/releases) and in `CHANGELOG.md`.
 

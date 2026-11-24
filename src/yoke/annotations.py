@@ -738,7 +738,8 @@ def cli_function_count(
         logger.debug("Write to %s", pth_mgs_pa)
         tbl_presence.to_csv(pth_mgs_pa, sep="\t", **comp_args)
         mean: pd.Series = tbl.mean(axis=1)
-        mean.index.name = mgs.name
+        # The series name becomes the MGS column in the combined table
+        mean.name = mgs.name
         means.append(mean)
     pth_all: pathlib.Path = output / f"{name}.tsv"
     logger.debug("Producing per MGS mean table")

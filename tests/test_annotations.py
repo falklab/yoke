@@ -7,12 +7,14 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 import pytest
+import tqdm
 from scipy.stats import fisher_exact
 
 from yoke import annotations, create
 from yoke.annotations import (
     HierarchicalSchema,
     RTKModules,
+    cli_function_count,
     cli_function_enrichment,
     cli_function_modules,
     function_enrichment,
@@ -20,6 +22,7 @@ from yoke.annotations import (
 from yoke.create import MGS
 
 AnnPaths = namedtuple("AnnPaths", "annotation description")
+FunctionInputs = namedtuple("FunctionInputs", "magvsgc annotation description")
 
 
 @pytest.fixture
@@ -106,6 +109,71 @@ def test_hs_mgs_count(dime_kegg_annotation_path, dime_magvsgc_path):
     # f = s.function_counts(mgs)
     tbl: pd.DataFrame = s.function_counts(mgs_list)
     assert not tbl.empty
+
+
+@pytest.fixture
+def small_function_inputs(tmp_path: pathlib.Path) -> NamedTuple:
+    """MAGvsGC, gene annotation and descriptions for two small MGS.
+
+    MGS.1 has two MAGs (genes 1-4), MGS.2 one MAG (gene 5).
+    """
+
+    pth_magvsgc: pathlib.Path = tmp_path / "MAGvsGC.txt.gz"
+    pd.DataFrame(
+        {
+            "MAG": ["S1__1", "S2__1", "S1__2"],
+            "MGS": ["MGS.1", "MGS.1", "MGS.2"],
+            "Representative4MGS": ["*", "", "*"],
+            "Completeness": [95.0, 90.0, 80.0],
+            "Contamination": [1.0, 2.0, 1.0],
+            "other_Genes": ["1,2,,3", "1,4", "5"],
+        }
+    ).to_csv(pth_magvsgc, sep="\t", index=False, compression="gzip")
+    pth_annotation: pathlib.Path = tmp_path / "annotation.tsv"
+    pth_annotation.write_text("1\tK1\n2\tK2\n3\tK1\n4\tK2\n5\tK3\n")
+    pth_description: pathlib.Path = tmp_path / "descriptions.tsv"
+    pth_description.write_text("K1\tfirst\nK2\tsecond\nK3\tthird\n")
+    return FunctionInputs(
+        magvsgc=pth_magvsgc,
+        annotation=pth_annotation,
+        description=pth_description,
+    )
+
+
+def test_function_count_cli(
+    small_function_inputs: NamedTuple,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Per-MGS tables and the table of MGS means are written."""
+
+    # tqdm's monitor thread would outlive the test, and later tests fork
+    monkeypatch.setattr(tqdm.tqdm, "monitor_interval", 0)
+    paths: NamedTuple = small_function_inputs
+    pth_out: pathlib.Path = tmp_path / "out"
+    pth_out.mkdir()
+
+    cli_function_count(
+        magvsgc=paths.magvsgc,
+        annotations=paths.annotation,
+        descriptions=paths.description,
+        output=pth_out,
+        name="KEGG",
+        compress=False,
+    )
+
+    mgs1: pd.DataFrame = pd.read_csv(
+        pth_out / "KEGG" / "MGS.1.tsv", sep="\t", index_col=0
+    )
+    assert mgs1.loc["K1", "S1__1"] == 2
+    assert mgs1.loc["K2", "S2__1"] == 1
+    means: pd.DataFrame = pd.read_csv(
+        pth_out / "KEGG.tsv", sep="\t", index_col=0
+    )
+    assert list(means.columns) == ["MGS.1", "MGS.2"]
+    assert means.loc["K1", "MGS.1"] == 1.5
+    assert means.loc["K3", "MGS.2"] == 1.0
+    assert np.isnan(means.loc["K3", "MGS.1"])
 
 
 @pytest.fixture

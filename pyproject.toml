@@ -1,6 +1,6 @@
 [project]
 name = "yoke"
-version = "0.1.0"
+version = "0.2.0"
 description = "Connecting metagenomic species and their functions."
 authors = [{ name = "Anthony Duncan", email = "anthony.duncan@earlham.ac.uk" }]
 readme = "README.md"

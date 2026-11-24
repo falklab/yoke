@@ -377,7 +377,8 @@ class RTKModules:
             f"-description {self.description} "
         )
         if self.hierarchy is not None:
-            rtk_cmd += f"-hierarchy {self.hierarchy} "
+            # rtk's option is -hiera; it rejects -hierarchy as unknown
+            rtk_cmd += f"-hiera {self.hierarchy} "
 
         # Convert rtk params to command options
         logger.debug("Format extra RTK arguments: %s", rtk_params)

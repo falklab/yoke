@@ -1,4 +1,6 @@
 import pathlib
+import re
+import subprocess
 from collections import namedtuple
 from typing import NamedTuple
 
@@ -7,7 +9,7 @@ import pandas as pd
 import pytest
 from scipy.stats import fisher_exact
 
-from yoke import create
+from yoke import annotations, create
 from yoke.annotations import (
     HierarchicalSchema,
     RTKModules,
@@ -145,6 +147,53 @@ def test_score_cli(pth_mgs_kegg: pathlib.Path, tmp_path: pathlib.Path):
         ).exists()
         # Ensure uncompressed versions tidied up
         assert not tbl.with_suffix("").exists()
+
+
+def test_score_table_hierarchy_option(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+):
+    """A module hierarchy is passed to rtk with its -hiera option."""
+
+    commands: list[str] = []
+
+    def fake_run(cmd: str, **kwargs: object) -> subprocess.CompletedProcess:
+        commands.append(cmd)
+        (tmp_path / "MGS.1.GBM.mat").touch()
+        return subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+    monkeypatch.setattr(annotations.subprocess, "run", fake_run)
+    gbm = RTKModules.from_bundled("GBM")
+    gbm.score_table(
+        pth_mgs_tbl=tmp_path / "MGS.1.tsv",
+        output_prefix=tmp_path / "MGS.1.GBM",
+    )
+
+    assert f" -hiera {gbm.hierarchy} " in commands[0]
+    assert "-hierarchy" not in commands[0]
+
+
+@pytest.mark.requires_rtk
+def test_score_gbm_with_hierarchy(tmp_path: pathlib.Path):
+    """rtk scores a module set that has a hierarchy file."""
+
+    gbm = RTKModules.from_bundled("GBM")
+    kos: list[str] = sorted(
+        set(re.findall(r"K\d{5}", gbm.definition.read_text()))
+    )
+    pth_tbl: pathlib.Path = tmp_path / "MGS.1.tsv"
+    pd.DataFrame(
+        {"MAG_a": 1, "MAG_b": [i % 2 for i in range(len(kos))]}, index=kos
+    ).to_csv(pth_tbl, sep="\t")
+    pref: pathlib.Path = tmp_path / "MGS.1.GBM"
+
+    gbm.score_table(pth_mgs_tbl=pth_tbl, output_prefix=pref)
+
+    for xtn in ["KOused", "mat", "descr", "MODscore"]:
+        assert pref.with_name(f"{pref.name}.{xtn}").exists()
+    scores: pd.DataFrame = pd.read_csv(
+        pref.with_name(f"{pref.name}.MODscore"), sep="\t", index_col=0
+    )
+    assert not scores.empty
 
 
 @pytest.fixture

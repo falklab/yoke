@@ -11,10 +11,17 @@ Domain terms used throughout the code:
 - **MAG**: metagenome-assembled genome (one bin). Names look like `Sample1__SemiBin_177.fa.gz`.
 - **MGS**: metagenomic species, a cluster of MAGs from the same species.
 - **MAGvsGC**: MG-TK table with one row per MAG: MGS membership, completeness, contamination, and the
-  MAG's genes as a comma-separated list (`,,` marks a contig boundary).
-- **Function / schema**: functional annotation of genes, e.g. KEGG orthologs (KOs), eggNOG, CAZy.
-- **Modules**: sets of functions scored with the external `rtk` tool. Bundled sets are BSB (gut-brain)
-  and GBM (gut metabolism) in `src/yoke/data/`.
+  MAG's genes as a comma-separated list (`,,` marks a contig boundary). `create.generate_mgs_from_magvsgc`
+  streams it (always gzipped) and starts a new MGS whenever the MGS column changes, so the rows of an MGS
+  must be adjacent. The gene list column is `other_Genes` (`DEF_MAGCVSGC_COLS`); MG-TK's Perl path writes
+  `other_genes`, and `?` marks a MAG without MGS.
+- **Function / schema**: functional annotation of genes, e.g. KEGG orthologs (KOs), eggNOG, CAZy. Gene
+  annotation files have one function ID per row; `HierarchicalSchema` counts one function per gene. MG-TK
+  `*geneAss` files can hold several functions in one field (`K00001,K00002`), which must be split first.
+- **Modules**: sets of functions scored with the external `rtk` tool (`rtk module`; its options are listed
+  in rtk's `options.cpp`, e.g. the hierarchy option is `-hiera`). Bundled sets in `src/yoke/data/`: BSB, the
+  gut metabolic modules (`MF0001`-`MF0133`, Vieira-Silva et al. 2016), and GBM, the gut-brain modules
+  (`MGB001`-`MGB056`, Valles-Colomer et al. 2019, with a hierarchy).
 
 ## Commands
 ```

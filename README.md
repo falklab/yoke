@@ -29,7 +29,8 @@ pip install git+https://github.com/falklab/yoke.git@vX.Y.Z
 
 ### External tools
 `yoke module_score` uses [rtk](https://github.com/hildebra/rtk), which must be available on your `PATH`.
-It can be installed from bioconda, as in the example above.
+It can be installed from bioconda, as in the example above. The `rtk2` binary shipped with MATAFILER4
+(`bin/rtk2`) also works when it is on your `PATH` under the name `rtk`.
 The examples use the [prefix.dev](https://prefix.dev) mirrors of conda-forge and bioconda, as anaconda.org is
 blocked on some institute networks.
 
@@ -72,6 +73,27 @@ yoke function_counts \
 --compress
 ```
 
+This writes, in the output directory (which must already exist):
+- `KEGG/MGS.1.tsv(.gz)`: genes with each function (rows) in each MAG (columns) of the MGS.
+- `KEGG/presence.MGS.1.tsv(.gz)`: the same table as presence/absence.
+- `KEGG.tsv`: the mean count per MAG of each function, with one column per MGS.
+
+What the inputs must look like:
+- **MAGvsGC** is read as a gzipped stream, one MGS at a time. The rows of each MGS must be next to each other,
+  and the gene list column must be named `other_Genes`. MAGs whose MGS is empty are skipped; any other
+  value, including `?`, is treated as an MGS name. MAGs are kept when their `Completeness` is above
+  `--completeness` (default 0) and their `Contamination` below `--contamination` (default 100). Each MGS
+  needs at least one MAG that passes these filters.
+- **Gene annotations** need one function ID per row (`gene<TAB>function`), and gene IDs must be integers. A
+  gene can appear on several rows, but only one function is counted for each gene (the last row). MG-TK
+  `*geneAss` files can list several functions of a gene in one field (`K00001,K00002`, with `;` between
+  hierarchy levels); split these into one row per function first, or the whole field is counted as one function.
+- **Descriptions** are a headerless tab-separated table with the function ID in the first column and its
+  description in the last. A function without a description is still counted.
+
+The MGS function tables of MATAFILER4 (`MGS.pl -funcTables`) prepare these inputs from MG-TK outputs and run
+`function_counts`, `module_score` and `function_summarise` for each MGS.
+
 You can then summarise these results to different taxonomic levels using `yoke function_summarise`.
 See `yoke function_summarise --help` for usage.
 
@@ -80,25 +102,26 @@ You can produce a table of module scores for the MAGs in a MGS.
 There are a number of bundled modules which can be selected, or you can provide your own.
 The input is the table of functional annotations per MAG produced by `function_counts`.
 
-Example usage for scoring BSB gut-brain modules, which are based on KEGG orthologs.
+Example usage for scoring the bundled GBM gut-brain modules, which are based on KEGG orthologs.
 ```
 yoke module_score \
 -i KEGG/MGS.* \
 -o module_scores/ \
--m BSB \
--n BSB
+-m GBM
 ```
 
 For each MGS, four output files will be produced:
 - `MGS.1.{mod}.mat`: Matrix of counts of genes in each module for each MAG in the MGS.
 - `MGS.1.{mod}.MODscore`: Module scores for each MAG in the MGS.
 - `MGS.1.{mod}.KOused`: Which functions participated in each module for each MAG in the MGS.
-- `MGS.1.{mod}.descr`: Decription of each module which appears in the MGS.
+- `MGS.1.{mod}.descr`: Description of each module which appears in the MGS.
 
-The bundled modules are:
-- BSB: Human gut-brain modules. Based on KEGG orthologs.
-- GBM: Human gut metabolism modules. Based on KEGG orthologs.
+The bundled modules are (`-m`; `-n` is only used for your own modules):
+- BSB: Human gut metabolic modules (`MF0001`-`MF0133`). Based on KEGG orthologs.
   ([Vieira-Silva et al., 2016](https://doi.org/10.1038/nmicrobiol.2016.88))
+- GBM: Human gut-brain modules (`MGB001`-`MGB056`), the microbial production and degradation of
+  neuroactive compounds. Based on KEGG orthologs, with a module hierarchy (`-hiera` in rtk).
+  ([Valles-Colomer et al., 2019](https://doi.org/10.1038/s41564-018-0337-x))
 
 ### Function Enrichment
 Test whether the presence of each function is associated with a metadata category which has two levels

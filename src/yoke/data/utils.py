@@ -24,11 +24,15 @@ class ModuleInfo(NamedTuple):
 class BundledModules(Enum):
     GBM = ModuleInfo(
         name="GBM",
-        about="Human gut metabolic modules. Based on KO annotations.",
+        about=(
+            "Human gut-brain modules (MGB001-MGB056): microbial production "
+            "and degradation of neuroactive compounds. Based on KO "
+            "annotations."
+        ),
         citation=(
-            "Vieira-Silva et al. Species–function relationships shape "
-            "ecological properties of the human gut microbiome (2016). "
-            "https://doi.org/10.1038/nmicrobiol.2016.88"
+            "Valles-Colomer et al. The neuroactivity potential of the human "
+            "gut microbiota in quality of life and depression (2019). "
+            "https://doi.org/10.1038/s41564-018-0337-x"
         ),
         definition=pathlib.Path(
             files("yoke.data").joinpath(pathlib.Path("GBM", "modGBM.list"))
@@ -44,8 +48,15 @@ class BundledModules(Enum):
     )
     BSB = ModuleInfo(
         name="BSB",
-        about="Human gut brain modules",
-        citation="",
+        about=(
+            "Human gut metabolic modules (MF0001-MF0133). Based on KO "
+            "annotations."
+        ),
+        citation=(
+            "Vieira-Silva et al. Species–function relationships shape "
+            "ecological properties of the human gut microbiome (2016). "
+            "https://doi.org/10.1038/nmicrobiol.2016.88"
+        ),
         definition=pathlib.Path(
             files("yoke.data").joinpath(pathlib.Path("BSB", "modg.list"))
         ),
